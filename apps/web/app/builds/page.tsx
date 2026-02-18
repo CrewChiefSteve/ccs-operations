@@ -34,7 +34,7 @@ type BuildOrder = {
   qcPassedCount?: number;
   qcFailedCount?: number;
   notes?: string;
-  createdAt: number;
+  _creationTime: number;
   updatedAt: number;
 };
 
@@ -158,7 +158,7 @@ export default function BuildsPage() {
       className: "w-28",
       render: (row: BuildOrder) => (
         <span className="text-xs text-text-tertiary">
-          {formatDate(row.createdAt)}
+          {formatDate(row._creationTime)}
         </span>
       ),
     },
@@ -349,7 +349,7 @@ export default function BuildsPage() {
               <div>
                 <p className="text-2xs text-text-tertiary">Created</p>
                 <p className="text-sm text-text-primary">
-                  {formatDate(selectedBuild.createdAt)}
+                  {formatDate(selectedBuild._creationTime)}
                 </p>
               </div>
               <div>

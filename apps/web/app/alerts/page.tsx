@@ -34,7 +34,7 @@ type Alert = {
   relatedEntityId?: string;
   status: string;
   assignedTo?: string;
-  createdAt: number;
+  _creationTime: number;
   resolvedAt?: number;
   resolvedBy?: string;
 };
@@ -176,7 +176,7 @@ export default function AlertsPage() {
                     {alert.message}
                   </p>
                   <div className="mt-2 flex items-center gap-4 text-2xs text-text-tertiary">
-                    <span>{formatRelativeTime(alert.createdAt)}</span>
+                    <span>{formatRelativeTime(alert._creationTime)}</span>
                     {alert.status === "acknowledged" && (
                       <span className="flex items-center gap-1 text-blue-400">
                         <Eye size={10} />

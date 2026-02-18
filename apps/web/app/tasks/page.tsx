@@ -40,7 +40,7 @@ type Task = {
   relatedEntityId?: string;
   completionNotes?: string;
   createdBy: string;
-  createdAt: number;
+  _creationTime: number;
   completedAt?: number;
 };
 
@@ -200,7 +200,7 @@ export default function TasksPage() {
                   <div className="mt-2 flex items-center gap-4 text-2xs text-text-tertiary">
                     <span className="flex items-center gap-1">
                       <Clock size={10} />
-                      {formatRelativeTime(task.createdAt)}
+                      {formatRelativeTime(task._creationTime)}
                     </span>
                     {task.createdBy === "agent" && (
                       <span className="font-mono text-accent/60">

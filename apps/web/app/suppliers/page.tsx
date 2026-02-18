@@ -25,7 +25,7 @@ type Supplier = {
   accountNumber?: string;
   notes?: string;
   rating?: number;
-  createdAt: number;
+  _creationTime: number;
   componentCount?: number;
 };
 

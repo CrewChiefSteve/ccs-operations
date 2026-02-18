@@ -11,7 +11,8 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatDate(timestamp: number): string {
+export function formatDate(timestamp: number | undefined | null): string {
+  if (!timestamp) return "—";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -19,7 +20,8 @@ export function formatDate(timestamp: number): string {
   }).format(new Date(timestamp));
 }
 
-export function formatDateTime(timestamp: number): string {
+export function formatDateTime(timestamp: number | undefined | null): string {
+  if (!timestamp) return "—";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -28,7 +30,8 @@ export function formatDateTime(timestamp: number): string {
   }).format(new Date(timestamp));
 }
 
-export function formatRelativeTime(timestamp: number): string {
+export function formatRelativeTime(timestamp: number | undefined | null): string {
+  if (!timestamp) return "—";
   const now = Date.now();
   const diff = now - timestamp;
   const minutes = Math.floor(diff / 60000);

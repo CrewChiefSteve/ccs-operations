@@ -28,7 +28,7 @@ type Component = {
   description?: string;
   unitOfMeasure: string;
   isActive: boolean;
-  createdAt: number;
+  _creationTime: number;
   updatedAt: number;
 };
 

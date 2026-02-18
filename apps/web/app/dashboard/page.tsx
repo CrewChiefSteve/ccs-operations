@@ -127,7 +127,7 @@ export default function DashboardPage() {
               </p>
             )}
             {overview?.recentAlerts?.map(
-              (alert: { title: string; severity: string; createdAt: number; _id: string }, i: number) => (
+              (alert: { title: string; severity: string; _creationTime: number; _id: string }, i: number) => (
                 <div
                   key={i}
                   className="flex items-center gap-3 rounded-md bg-surface-2 px-3 py-2"
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                       {alert.title}
                     </p>
                     <p className="text-2xs text-text-tertiary">
-                      {formatRelativeTime(alert.createdAt)}
+                      {formatRelativeTime(alert._creationTime)}
                     </p>
                   </div>
                 </div>

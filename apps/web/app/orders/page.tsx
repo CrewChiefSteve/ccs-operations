@@ -32,7 +32,7 @@ type PurchaseOrder = {
   total: number;
   notes?: string;
   createdBy: string;
-  createdAt: number;
+  _creationTime: number;
   lineItems?: Array<{
     componentName: string;
     quantity: number;
