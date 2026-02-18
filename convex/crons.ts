@@ -23,14 +23,14 @@ const crons = cronJobs();
 crons.interval(
   "stock-level-monitor",
   { hours: 1 },
-  internal.inventory.stockMonitor.checkStockLevels
+  internal.inventory.stockmonitor.checkStockLevels
 );
 
 // Every 6 hours: check for overdue purchase orders
 crons.interval(
   "overdue-po-monitor",
   { hours: 6 },
-  internal.inventory.stockMonitor.checkOverduePOs
+  internal.inventory.stockmonitor.checkOverduePOs
 );
 
 export default crons;
