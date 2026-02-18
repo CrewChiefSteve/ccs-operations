@@ -47,8 +47,9 @@ convex/
 │   ├── bomEntries.ts            # BOM management + feasibility checker
 │   ├── purchaseOrders.ts        # PO lifecycle + line items + receiving
 │   ├── buildOrders.ts           # Build order lifecycle
+│   ├── buildWorkflow.ts         # Material reservation, consumption, release + BOM feasibility
 │   ├── transactions.ts          # Append-only inventory audit trail
-│   ├── stockmonitor.ts          # Internal mutations: stock threshold + overdue PO checks
+│   ├── stockMonitor.ts          # Internal mutations: stock threshold + overdue PO checks
 │   └── receiving.ts             # Full receive-from-PO workflow (PO→txn→stock→alerts)
 ├── agent/
 │   ├── alerts.ts                # Agent-generated alerts with lifecycle
@@ -115,5 +116,5 @@ Custom tokens used throughout (defined in Tailwind config):
 ## Phase Status
 - ✅ Phase 1: Google Drive MCP Server (in `packages/drive-mcp/`)
 - ✅ Phase 2: Convex schema + backend mutations/queries
-- 🔶 Phase 3: Inventory agent + transaction workflows (stock monitor cron + receiving workflow done; task escalation, mobile receiving UI pending)
+- 🔶 Phase 3: Inventory agent + transaction workflows (stock monitor cron + receiving + build workflow done; task escalation pending)
 - 🔲 Phase 4: Cross-system intelligence + inventory-mcp
