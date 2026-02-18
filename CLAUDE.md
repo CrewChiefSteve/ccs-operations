@@ -67,6 +67,7 @@ convex/
 | `/inventory` | Stock levels |
 | `/suppliers` | Supplier directory |
 | `/orders` | Purchase orders |
+| `/receiving` | PO receiving workflow |
 | `/builds` | Build orders |
 | `/tasks` | Agent task queue |
 | `/alerts` | Agent alerts |
