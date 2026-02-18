@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  PackageCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -38,6 +39,7 @@ const NAV_SECTIONS = [
     label: "Operations",
     items: [
       { href: "/orders", label: "Purchase Orders", icon: ClipboardList },
+      { href: "/receiving", label: "Receive Shipments", icon: PackageCheck },
       { href: "/builds", label: "Build Orders", icon: Hammer },
     ],
   },

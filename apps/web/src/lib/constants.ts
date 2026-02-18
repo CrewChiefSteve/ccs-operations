@@ -47,6 +47,7 @@ export const PO_STATUS_CONFIG: Record<
   submitted: { label: "Submitted", color: "bg-blue-500/15 text-blue-400" },
   confirmed: { label: "Confirmed", color: "bg-indigo-500/15 text-indigo-400" },
   shipped: { label: "Shipped", color: "bg-amber-500/15 text-amber-400" },
+  partial_received: { label: "Partial Received", color: "bg-orange-500/15 text-orange-400" },
   received: { label: "Received", color: "bg-emerald-500/15 text-emerald-400" },
   cancelled: { label: "Cancelled", color: "bg-red-500/15 text-red-400" },
 };
