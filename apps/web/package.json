@@ -10,14 +10,15 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.12.0",
+    "@clerk/themes": "^2.4.53",
+    "clsx": "^2.1.1",
     "convex": "^1.17.0",
     "convex-helpers": "^0.1.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "lucide-react": "^0.468.0",
-    "clsx": "^2.1.1",
-    "date-fns": "^4.1.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

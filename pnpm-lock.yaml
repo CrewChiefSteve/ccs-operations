@@ -17,6 +17,9 @@ importers:
       '@clerk/nextjs':
         specifier: ^6.12.0
         version: 6.37.5(next@15.5.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@clerk/themes':
+        specifier: ^2.4.53
+        version: 2.4.53(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -102,6 +105,10 @@ packages:
         optional: true
       react-dom:
         optional: true
+
+  '@clerk/themes@2.4.53':
+    resolution: {integrity: sha512-RHcliXup/yNiqIhEZ/vHudO+Ofk/onlI1K1Y3vz/9kSU5tuGem1jWxSUjheU+zbUGnyBtQTRCsODwMf2vLqbCw==}
+    engines: {node: '>=18.17.0'}
 
   '@clerk/types@4.101.16':
     resolution: {integrity: sha512-LECMfBP79+1gEqQy30fOeWxhcD7/c4nzz6IJ66r3ejRokwKaKsMCBRXP/Rgf39UpPajUb8oYzQ0CIhz1dc3Ehw==}
@@ -1024,6 +1031,14 @@ snapshots:
     optionalDependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+
+  '@clerk/themes@2.4.53(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@clerk/shared': 3.45.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - react
+      - react-dom
 
   '@clerk/types@4.101.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
