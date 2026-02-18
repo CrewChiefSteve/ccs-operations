@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Internal operations platform for CCS Technologies. Manages inventory, warehouse, purchasing, build orders, and Google Drive engineering docs. Completely separate from the customer-facing crewchiefsteve.ai.
 
 ## Architecture
-- **Convex** backend with 14 tables (see `convex/schema.ts`)
+- **Convex** backend with 17 tables (see `convex/schema.ts`)
 - **MCP servers** in `packages/` for Claude Code/Chat integration
 - **Next.js 15** web dashboard in `apps/web/` (React 19, Tailwind, Clerk auth)
 - **pnpm workspaces** monorepo — packages: `apps/web`, `packages/shared`
@@ -37,7 +37,7 @@ convex/
 ├── schema.ts                    # All 14 tables with validators and indexes
 ├── auth.config.ts               # Clerk provider config
 ├── dashboard.ts                 # Aggregate overview query
-├── crons.ts                     # Scheduled jobs (stock monitor, PO overdue, task SLA)
+├── crons.ts                     # Scheduled jobs (stock monitor, PO overdue, task SLA, BOM scan, daily briefing)
 ├── inventory/
 │   ├── components.ts            # Part catalog CRUD
 │   ├── suppliers.ts             # Vendor directory CRUD
@@ -54,7 +54,9 @@ convex/
 ├── agent/
 │   ├── alerts.ts                # Agent-generated alerts with lifecycle
 │   ├── tasks.ts                 # Meat Bag Director task system with SLA/escalation
-│   └── taskEscalation.ts        # Internal mutation: SLA monitor + escalation cron
+│   ├── taskEscalation.ts        # Internal mutation: SLA monitor + escalation cron
+│   ├── bomSync.ts               # BOM change detection, diff, inventory reconciliation (Phase 4A)
+│   └── briefing.ts              # Daily briefing generator via Claude API (Phase 4A)
 └── driveSync/
     ├── driveFiles.ts            # Google Drive metadata index
     └── syncLog.ts               # Drive sync audit trail
@@ -118,4 +120,5 @@ Custom tokens used throughout (defined in Tailwind config):
 - ✅ Phase 1: Google Drive MCP Server (in `packages/drive-mcp/`)
 - ✅ Phase 2: Convex schema + backend mutations/queries
 - ✅ Phase 3: Inventory agent + transaction workflows (stock monitor, receiving workflow, build workflow, task SLA escalation cron)
-- 🔲 Phase 4: Cross-system intelligence + inventory-mcp
+- ✅ Phase 4A: Cross-system intelligence (BOM sync, daily briefing, 3 new schema tables: bomChangeLogs, briefings, bomSnapshots)
+- 🔲 Phase 4B: Build order lifecycle, inventory-mcp server, dashboard pages for BOM changes and briefings
