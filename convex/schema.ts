@@ -282,7 +282,8 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_severity", ["severity"])
     .index("by_status", ["status"])
-    .index("by_component", ["componentId"]),
+    .index("by_component", ["componentId"])
+    .index("by_type_status", ["type", "status"]),
 
   // ----------------------------------------------------------
   // AGENT: TASKS (Meat Bag Director)
@@ -368,4 +369,116 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_startedAt", ["startedAt"]),
+
+  // ----------------------------------------------------------
+  // PHASE 4: BOM CHANGE TRACKING
+  // ----------------------------------------------------------
+  bomChangeLogs: defineTable({
+    driveFileId: v.optional(v.id("driveFiles")),
+    driveId: v.optional(v.string()),
+    product: v.string(),
+    bomVersion: v.optional(v.string()),
+    changeType: v.union(
+      v.literal("component_added"),
+      v.literal("component_removed"),
+      v.literal("component_substituted"),
+      v.literal("quantity_changed"),
+      v.literal("new_bom_detected"),
+      v.literal("bom_parse_error")
+    ),
+    componentPartNumber: v.optional(v.string()),
+    componentName: v.optional(v.string()),
+    previousValue: v.optional(v.string()),
+    newValue: v.optional(v.string()),
+    status: v.union(
+      v.literal("detected"),
+      v.literal("processing"),
+      v.literal("resolved"),
+      v.literal("requires_human"),
+      v.literal("error")
+    ),
+    resolution: v.optional(v.string()),
+    taskId: v.optional(v.id("tasks")),
+    alertId: v.optional(v.id("alerts")),
+    inventoryImpact: v.optional(v.object({
+      componentId: v.optional(v.id("components")),
+      currentStock: v.optional(v.number()),
+      requiredPerUnit: v.optional(v.number()),
+      shortfall: v.optional(v.number()),
+      estimatedCost: v.optional(v.number()),
+    })),
+    detectedAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    processedBy: v.optional(v.string()),
+  })
+    .index("by_product", ["product"])
+    .index("by_status", ["status"])
+    .index("by_detectedAt", ["detectedAt"])
+    .index("by_driveFileId", ["driveFileId"])
+    .index("by_product_status", ["product", "status"]),
+
+  // ----------------------------------------------------------
+  // PHASE 4: DAILY BRIEFINGS
+  // ----------------------------------------------------------
+  briefings: defineTable({
+    date: v.string(),
+    generatedAt: v.number(),
+    summary: v.string(),
+    sections: v.object({
+      inventory: v.object({
+        lowStockCount: v.number(),
+        pendingPOs: v.number(),
+        arrivingToday: v.number(),
+        activeBuildOrders: v.number(),
+        highlights: v.array(v.string()),
+      }),
+      drive: v.object({
+        filesModifiedYesterday: v.number(),
+        structuralViolations: v.number(),
+        staleEngLogs: v.number(),
+        highlights: v.array(v.string()),
+      }),
+      tasks: v.object({
+        pendingCount: v.number(),
+        overdueCount: v.number(),
+        completedYesterday: v.number(),
+        highlights: v.array(v.string()),
+      }),
+      upcoming: v.object({
+        highlights: v.array(v.string()),
+      }),
+    }),
+    dataSnapshot: v.optional(v.string()),
+    status: v.union(
+      v.literal("generating"),
+      v.literal("ready"),
+      v.literal("error")
+    ),
+    error: v.optional(v.string()),
+    readBy: v.optional(v.array(v.string())),
+  })
+    .index("by_date", ["date"])
+    .index("by_generatedAt", ["generatedAt"]),
+
+  // ----------------------------------------------------------
+  // PHASE 4: BOM SNAPSHOTS (for change diffing)
+  // ----------------------------------------------------------
+  bomSnapshots: defineTable({
+    product: v.string(),
+    bomVersion: v.optional(v.string()),
+    driveFileId: v.optional(v.id("driveFiles")),
+    driveId: v.optional(v.string()),
+    entries: v.array(v.object({
+      partNumber: v.optional(v.string()),
+      name: v.string(),
+      quantity: v.number(),
+      referenceDesignator: v.optional(v.string()),
+      notes: v.optional(v.string()),
+    })),
+    contentHash: v.string(),
+    snapshotAt: v.number(),
+  })
+    .index("by_product", ["product"])
+    .index("by_product_version", ["product", "bomVersion"])
+    .index("by_driveId", ["driveId"]),
 });

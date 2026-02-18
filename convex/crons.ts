@@ -45,4 +45,20 @@ crons.interval(
   internal.agent.taskEscalation.checkTaskSLAs
 );
 
+// ---- Phase 4: BOM Change Scanner ----
+// Every 15 minutes: detect BOM file changes from Drive sync
+crons.interval(
+  "scan-bom-changes",
+  { minutes: 15 },
+  internal.agent.bomSync.scanForBomChanges
+);
+
+// ---- Phase 4: Daily Briefing Generator ----
+// Daily at 13:00 UTC (7:00 AM CST / 8:00 AM CDT)
+crons.cron(
+  "daily-briefing",
+  "0 13 * * *",
+  internal.agent.briefing.generate
+);
+
 export default crons;
