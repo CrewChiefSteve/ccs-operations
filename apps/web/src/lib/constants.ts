@@ -96,7 +96,7 @@ export const TASK_PRIORITY_CONFIG: Record<
   { label: string; color: string }
 > = {
   low: { label: "Low", color: "bg-surface-3 text-text-secondary" },
-  medium: { label: "Medium", color: "bg-blue-500/15 text-blue-400" },
+  normal: { label: "Normal", color: "bg-blue-500/15 text-blue-400" },
   high: { label: "High", color: "bg-amber-500/15 text-amber-400" },
   urgent: { label: "Urgent", color: "bg-red-500/15 text-red-400" },
 };
@@ -106,14 +106,11 @@ export const TASK_STATUS_CONFIG: Record<
   { label: string; color: string }
 > = {
   pending: { label: "Pending", color: "bg-amber-500/15 text-amber-400" },
-  in_progress: {
-    label: "In Progress",
-    color: "bg-blue-500/15 text-blue-400",
-  },
-  completed: {
-    label: "Completed",
-    color: "bg-emerald-500/15 text-emerald-400",
-  },
+  assigned: { label: "Assigned", color: "bg-blue-500/15 text-blue-400" },
+  in_progress: { label: "In Progress", color: "bg-blue-500/15 text-blue-400" },
+  completed: { label: "Completed", color: "bg-emerald-500/15 text-emerald-400" },
+  verified: { label: "Verified", color: "bg-emerald-500/15 text-emerald-400" },
+  escalated: { label: "Escalated", color: "bg-red-500/15 text-red-400" },
   cancelled: { label: "Cancelled", color: "bg-surface-3 text-text-secondary" },
 };
 

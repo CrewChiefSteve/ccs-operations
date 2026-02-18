@@ -50,7 +50,7 @@ export const PO_STATUSES = ["draft", "submitted", "confirmed", "shipped", "parti
 export const BUILD_STATUSES = ["planned", "materials_reserved", "in_progress", "qc", "complete", "cancelled"] as const;
 export const TASK_STATUSES = ["pending", "assigned", "in_progress", "completed", "verified", "cancelled", "escalated"] as const;
 export const ALERT_SEVERITIES = ["info", "warning", "critical"] as const;
-export const ALERT_TYPES = ["low_stock", "out_of_stock", "po_overdue", "qc_failure", "structure_violation", "bom_change", "count_discrepancy"] as const;
+export const ALERT_TYPES = ["low_stock", "out_of_stock", "po_overdue", "qc_failure", "structure_violation", "bom_change", "count_discrepancy", "task_overdue"] as const;
 export const TASK_TYPES = ["count_inventory", "receive_shipment", "move_stock", "quality_check", "file_document", "review_bom", "general"] as const;
 export const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 

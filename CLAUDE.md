@@ -37,7 +37,7 @@ convex/
 ├── schema.ts                    # All 14 tables with validators and indexes
 ├── auth.config.ts               # Clerk provider config
 ├── dashboard.ts                 # Aggregate overview query
-├── crons.ts                     # Scheduled jobs (stock monitor, PO overdue check)
+├── crons.ts                     # Scheduled jobs (stock monitor, PO overdue, task SLA)
 ├── inventory/
 │   ├── components.ts            # Part catalog CRUD
 │   ├── suppliers.ts             # Vendor directory CRUD
@@ -49,11 +49,12 @@ convex/
 │   ├── buildOrders.ts           # Build order lifecycle
 │   ├── buildWorkflow.ts         # Material reservation, consumption, release + BOM feasibility
 │   ├── transactions.ts          # Append-only inventory audit trail
-│   ├── stockMonitor.ts          # Internal mutations: stock threshold + overdue PO checks
+│   ├── stockmonitor.ts          # Internal mutations: stock threshold + overdue PO checks
 │   └── receiving.ts             # Full receive-from-PO workflow (PO→txn→stock→alerts)
 ├── agent/
 │   ├── alerts.ts                # Agent-generated alerts with lifecycle
-│   └── tasks.ts                 # Meat Bag Director task system with SLA/escalation
+│   ├── tasks.ts                 # Meat Bag Director task system with SLA/escalation
+│   └── taskEscalation.ts        # Internal mutation: SLA monitor + escalation cron
 └── driveSync/
     ├── driveFiles.ts            # Google Drive metadata index
     └── syncLog.ts               # Drive sync audit trail
@@ -116,5 +117,5 @@ Custom tokens used throughout (defined in Tailwind config):
 ## Phase Status
 - ✅ Phase 1: Google Drive MCP Server (in `packages/drive-mcp/`)
 - ✅ Phase 2: Convex schema + backend mutations/queries
-- 🔶 Phase 3: Inventory agent + transaction workflows (stock monitor cron + receiving + build workflow done; task escalation pending)
+- ✅ Phase 3: Inventory agent + transaction workflows (stock monitor, receiving workflow, build workflow, task SLA escalation cron)
 - 🔲 Phase 4: Cross-system intelligence + inventory-mcp
