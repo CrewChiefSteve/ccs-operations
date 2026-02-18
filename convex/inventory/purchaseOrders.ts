@@ -4,29 +4,93 @@ import { mutation, query } from "../_generated/server";
 // ============================================================
 // PURCHASE ORDERS — Full PO Lifecycle
 // ============================================================
+// Dashboard contract: api.inventory.purchaseOrders.list / .create / .updateStatus
+// ============================================================
 
+// ============================================================
+// CONTRACT: api.inventory.purchaseOrders.list
+// Returns enriched POs with supplier name and line items.
+// ============================================================
 export const list = query({
   args: {
+    search: v.optional(v.string()),     // Dashboard contract field
     status: v.optional(v.string()),
     supplierId: v.optional(v.id("suppliers")),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    let pos;
     if (args.status) {
-      return await ctx.db
+      pos = await ctx.db
         .query("purchaseOrders")
         .withIndex("by_status", (q) => q.eq("status", args.status!))
         .order("desc")
         .take(args.limit ?? 50);
-    }
-    if (args.supplierId) {
-      return await ctx.db
+    } else if (args.supplierId) {
+      pos = await ctx.db
         .query("purchaseOrders")
         .withIndex("by_supplier", (q) => q.eq("supplierId", args.supplierId!))
         .order("desc")
         .take(args.limit ?? 50);
+    } else {
+      pos = await ctx.db.query("purchaseOrders").order("desc").take(args.limit ?? 50);
     }
-    return await ctx.db.query("purchaseOrders").order("desc").take(args.limit ?? 50);
+
+    // Enrich with supplier name and line items
+    const enriched = await Promise.all(
+      pos.map(async (po) => {
+        const supplier = await ctx.db.get(po.supplierId);
+        const lines = await ctx.db
+          .query("purchaseOrderLines")
+          .withIndex("by_purchaseOrder", (q) => q.eq("purchaseOrderId", po._id))
+          .collect();
+
+        const enrichedLines = await Promise.all(
+          lines.map(async (line) => {
+            const component = await ctx.db.get(line.componentId);
+            return {
+              componentName: component?.name ?? "Unknown",
+              quantity: line.quantityOrdered,
+              unitCost: line.unitPrice,
+              totalCost: line.lineTotal,
+              quantityReceived: line.quantityReceived,
+            };
+          })
+        );
+
+        return {
+          _id: po._id,
+          poNumber: po.poNumber,
+          supplierId: po.supplierId,
+          supplierName: supplier?.name ?? "Unknown",
+          status: po.status,
+          orderDate: po.orderDate,
+          expectedDelivery: po.expectedDelivery,
+          actualDelivery: po.actualDelivery,
+          trackingNumber: po.trackingNumber,
+          subtotal: po.subtotal ?? 0,
+          shipping: po.shippingCost,
+          tax: po.taxAmount,
+          total: po.totalCost ?? 0,
+          notes: po.notes,
+          createdBy: po.createdBy ?? "system",
+          createdAt: po._creationTime,
+          lineItems: enrichedLines.length > 0 ? enrichedLines : undefined,
+        };
+      })
+    );
+
+    // Client-side search filter
+    if (args.search && args.search.trim().length > 0) {
+      const term = args.search.toLowerCase();
+      return enriched.filter(
+        (po) =>
+          po.poNumber.toLowerCase().includes(term) ||
+          po.supplierName.toLowerCase().includes(term)
+      );
+    }
+
+    return enriched;
   },
 });
 
@@ -72,7 +136,6 @@ export const getByPoNumber = query({
   },
 });
 
-// Generate next PO number
 async function nextPoNumber(ctx: any): Promise<string> {
   const year = new Date().getFullYear();
   const existing = await ctx.db
@@ -102,7 +165,6 @@ export const create = mutation({
 
     const poNumber = args.poNumber ?? await nextPoNumber(ctx);
 
-    // Check uniqueness
     const existing = await ctx.db
       .query("purchaseOrders")
       .withIndex("by_poNumber", (q) => q.eq("poNumber", poNumber))
@@ -120,7 +182,6 @@ export const create = mutation({
   },
 });
 
-// Add line item to PO
 export const addLine = mutation({
   args: {
     purchaseOrderId: v.id("purchaseOrders"),
@@ -148,7 +209,6 @@ export const addLine = mutation({
       updatedAt: Date.now(),
     });
 
-    // Recalculate PO totals
     await recalculateTotals(ctx, args.purchaseOrderId);
     return lineId;
   },
@@ -172,7 +232,6 @@ async function recalculateTotals(ctx: any, poId: any) {
   });
 }
 
-// Status transitions
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
   submitted: ["confirmed", "cancelled"],
@@ -183,31 +242,48 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   cancelled: [],
 };
 
+// ============================================================
+// CONTRACT: api.inventory.purchaseOrders.updateStatus
+// Accepts both contract args (purchaseOrderId, status) and
+// extended args (id, newStatus) for MCP/agent use.
+// ============================================================
 export const updateStatus = mutation({
   args: {
-    id: v.id("purchaseOrders"),
-    newStatus: v.string(),
+    // Contract args
+    purchaseOrderId: v.optional(v.id("purchaseOrders")),
+    status: v.optional(v.string()),
+    // Extended args (MCP/agent)
+    id: v.optional(v.id("purchaseOrders")),
+    newStatus: v.optional(v.string()),
     trackingNumber: v.optional(v.string()),
     trackingUrl: v.optional(v.string()),
     approvedBy: v.optional(v.string()),
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const po = await ctx.db.get(args.id);
+    const poId = args.purchaseOrderId ?? args.id;
+    const targetStatus = args.status ?? args.newStatus;
+
+    if (!poId) throw new Error("Must provide purchaseOrderId or id");
+    if (!targetStatus) throw new Error("Must provide status or newStatus");
+
+    const po = await ctx.db.get(poId);
     if (!po) throw new Error("Purchase order not found");
 
     const allowed = VALID_TRANSITIONS[po.status];
-    if (!allowed || !allowed.includes(args.newStatus)) {
-      throw new Error(`Cannot transition PO from "${po.status}" to "${args.newStatus}". Allowed: ${allowed?.join(", ")}`);
+    if (!allowed || !allowed.includes(targetStatus)) {
+      throw new Error(
+        `Cannot transition PO from "${po.status}" to "${targetStatus}". Allowed: ${allowed?.join(", ")}`
+      );
     }
 
     const updates: Record<string, unknown> = {
-      status: args.newStatus,
+      status: targetStatus,
       updatedAt: Date.now(),
     };
 
-    if (args.newStatus === "submitted") updates.orderDate = Date.now();
-    if (args.newStatus === "received") updates.actualDelivery = Date.now();
+    if (targetStatus === "submitted") updates.orderDate = Date.now();
+    if (targetStatus === "received") updates.actualDelivery = Date.now();
     if (args.trackingNumber) updates.trackingNumber = args.trackingNumber;
     if (args.trackingUrl) updates.trackingUrl = args.trackingUrl;
     if (args.approvedBy) {
@@ -216,12 +292,11 @@ export const updateStatus = mutation({
     }
     if (args.notes) updates.notes = args.notes;
 
-    await ctx.db.patch(args.id, updates);
-    return { id: args.id, status: args.newStatus };
+    await ctx.db.patch(poId, updates);
+    return { id: poId, status: targetStatus };
   },
 });
 
-// Receive items against a PO line
 export const receiveLine = mutation({
   args: {
     lineId: v.id("purchaseOrderLines"),
@@ -247,7 +322,6 @@ export const receiveLine = mutation({
       updatedAt: Date.now(),
     });
 
-    // Check if all lines are received → update PO status
     const po = await ctx.db.get(line.purchaseOrderId);
     if (po) {
       const allLines = await ctx.db
@@ -273,7 +347,7 @@ export const receiveLine = mutation({
   },
 });
 
-// Enriched list with supplier names
+// Enriched list for MCP/agent (backward compat)
 export const listEnriched = query({
   args: {
     status: v.optional(v.string()),

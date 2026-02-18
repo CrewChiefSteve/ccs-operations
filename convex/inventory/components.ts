@@ -4,28 +4,48 @@ import { mutation, query } from "../_generated/server";
 // ============================================================
 // COMPONENTS — Part Catalog CRUD
 // ============================================================
+// Dashboard contract: api.inventory.components.list / .create
+// Also used by MCP servers and agents with extended args.
+// ============================================================
 
 export const list = query({
   args: {
+    search: v.optional(v.string()),   // Dashboard contract field
     category: v.optional(v.string()),
     status: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db.query("components");
-
-    if (args.category) {
-      q = ctx.db.query("components").withIndex("by_category", (q) =>
-        q.eq("category", args.category!)
-      );
-    } else if (args.status) {
-      q = ctx.db.query("components").withIndex("by_status", (q) =>
-        q.eq("status", args.status!)
-      );
+    // If search is provided, use the search index
+    if (args.search && args.search.trim().length > 0) {
+      return await ctx.db
+        .query("components")
+        .withSearchIndex("search_components", (q) => {
+          let search = q.search("name", args.search!);
+          if (args.category) search = search.eq("category", args.category);
+          if (args.status) search = search.eq("status", args.status);
+          return search;
+        })
+        .take(args.limit ?? 100);
     }
 
-    const results = await q.order("desc").take(args.limit ?? 100);
-    return results;
+    // Filtered queries via indexes
+    if (args.category) {
+      return await ctx.db
+        .query("components")
+        .withIndex("by_category", (q) => q.eq("category", args.category!))
+        .order("desc")
+        .take(args.limit ?? 100);
+    }
+    if (args.status) {
+      return await ctx.db
+        .query("components")
+        .withIndex("by_status", (q) => q.eq("status", args.status!))
+        .order("desc")
+        .take(args.limit ?? 100);
+    }
+
+    return await ctx.db.query("components").order("desc").take(args.limit ?? 100);
   },
 });
 
@@ -53,16 +73,15 @@ export const search = query({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db
+    return await ctx.db
       .query("components")
       .withSearchIndex("search_components", (q) => {
         let search = q.search("name", args.searchTerm);
         if (args.category) search = search.eq("category", args.category);
         if (args.status) search = search.eq("status", args.status);
         return search;
-      });
-
-    return await q.take(25);
+      })
+      .take(25);
   },
 });
 
@@ -75,6 +94,8 @@ export const create = mutation({
     subcategory: v.optional(v.string()),
     manufacturer: v.optional(v.string()),
     manufacturerPartNumber: v.optional(v.string()),
+    manufacturerPN: v.optional(v.string()), // Contract alias
+    unitOfMeasure: v.optional(v.string()), // Contract field: "each", "meter", etc.
     specs: v.optional(v.object({
       package: v.optional(v.string()),
       value: v.optional(v.string()),
@@ -103,9 +124,26 @@ export const create = mutation({
       throw new Error(`Component with part number ${args.partNumber} already exists`);
     }
 
+    // Accept either manufacturerPN (contract) or manufacturerPartNumber (schema)
+    const mfgPN = args.manufacturerPartNumber ?? args.manufacturerPN;
+
     return await ctx.db.insert("components", {
-      ...args,
+      partNumber: args.partNumber,
+      name: args.name,
+      description: args.description,
+      category: args.category,
+      subcategory: args.subcategory,
+      manufacturer: args.manufacturer,
+      manufacturerPartNumber: mfgPN,
+      unitOfMeasure: args.unitOfMeasure,
+      specs: args.specs,
+      datasheetUrl: args.datasheetUrl,
+      datasheetDriveFileId: args.datasheetDriveFileId,
+      imageUrl: args.imageUrl,
+      notes: args.notes,
       status: args.status ?? "active",
+      usedInProducts: args.usedInProducts,
+      createdBy: args.createdBy,
       updatedAt: Date.now(),
     });
   },
@@ -121,6 +159,7 @@ export const update = mutation({
     subcategory: v.optional(v.string()),
     manufacturer: v.optional(v.string()),
     manufacturerPartNumber: v.optional(v.string()),
+    unitOfMeasure: v.optional(v.string()),
     specs: v.optional(v.object({
       package: v.optional(v.string()),
       value: v.optional(v.string()),
@@ -142,7 +181,6 @@ export const update = mutation({
     const existing = await ctx.db.get(id);
     if (!existing) throw new Error("Component not found");
 
-    // If changing part number, check uniqueness
     if (updates.partNumber && updates.partNumber !== existing.partNumber) {
       const dup = await ctx.db
         .query("components")
@@ -151,7 +189,6 @@ export const update = mutation({
       if (dup) throw new Error(`Part number ${updates.partNumber} already in use`);
     }
 
-    // Filter out undefined values
     const cleanUpdates: Record<string, unknown> = { updatedAt: Date.now() };
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) cleanUpdates[key] = value;
@@ -165,7 +202,6 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("components") },
   handler: async (ctx, args) => {
-    // Check for dependencies before deletion
     const inventoryRefs = await ctx.db
       .query("inventory")
       .withIndex("by_component", (q) => q.eq("componentId", args.id))
@@ -189,7 +225,6 @@ export const remove = mutation({
   },
 });
 
-// Aggregate stats
 export const stats = query({
   handler: async (ctx) => {
     const all = await ctx.db.query("components").collect();
@@ -201,10 +236,6 @@ export const stats = query({
       byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
     }
 
-    return {
-      total: all.length,
-      byCategory,
-      byStatus,
-    };
+    return { total: all.length, byCategory, byStatus };
   },
 });

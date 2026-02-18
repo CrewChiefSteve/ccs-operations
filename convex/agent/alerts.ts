@@ -4,6 +4,9 @@ import { mutation, query } from "../_generated/server";
 // ============================================================
 // AGENT ALERTS — Operational Alert Management
 // ============================================================
+// Dashboard contract: api.agent.alerts.list / .acknowledge / .resolve / .dismiss
+// Contract uses "alertId" where schema uses "id".
+// ============================================================
 
 export const list = query({
   args: {
@@ -72,59 +75,85 @@ export const create = mutation({
   },
 });
 
+// ============================================================
+// CONTRACT: api.agent.alerts.acknowledge
+// Accepts both alertId (contract) and id (schema).
+// acknowledgedBy defaults to "dashboard" if not provided.
+// ============================================================
 export const acknowledge = mutation({
   args: {
-    id: v.id("alerts"),
-    acknowledgedBy: v.string(),
+    alertId: v.optional(v.id("alerts")),  // Contract arg
+    id: v.optional(v.id("alerts")),       // Schema arg
+    acknowledgedBy: v.optional(v.string()),  // Contract doesn't send; default to "dashboard"
   },
   handler: async (ctx, args) => {
-    const alert = await ctx.db.get(args.id);
+    const aId = args.alertId ?? args.id;
+    if (!aId) throw new Error("Must provide alertId or id");
+
+    const alert = await ctx.db.get(aId);
     if (!alert) throw new Error("Alert not found");
     if (alert.status !== "active") throw new Error("Alert is not active");
 
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch(aId, {
       status: "acknowledged",
-      acknowledgedBy: args.acknowledgedBy,
+      acknowledgedBy: args.acknowledgedBy ?? "dashboard",
       acknowledgedAt: Date.now(),
       updatedAt: Date.now(),
     });
-    return args.id;
+    return aId;
   },
 });
 
+// ============================================================
+// CONTRACT: api.agent.alerts.resolve
+// Accepts both alertId (contract) and id (schema).
+// ============================================================
 export const resolve = mutation({
   args: {
-    id: v.id("alerts"),
+    alertId: v.optional(v.id("alerts")),  // Contract arg
+    id: v.optional(v.id("alerts")),       // Schema arg
     resolvedBy: v.string(),
     resolvedAction: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const alert = await ctx.db.get(args.id);
+    const aId = args.alertId ?? args.id;
+    if (!aId) throw new Error("Must provide alertId or id");
+
+    const alert = await ctx.db.get(aId);
     if (!alert) throw new Error("Alert not found");
 
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch(aId, {
       status: "resolved",
       resolvedBy: args.resolvedBy,
       resolvedAt: Date.now(),
       resolvedAction: args.resolvedAction,
       updatedAt: Date.now(),
     });
-    return args.id;
+    return aId;
   },
 });
 
+// ============================================================
+// CONTRACT: api.agent.alerts.dismiss
+// Accepts both alertId (contract) and id (schema).
+// ============================================================
 export const dismiss = mutation({
-  args: { id: v.id("alerts") },
+  args: {
+    alertId: v.optional(v.id("alerts")),  // Contract arg
+    id: v.optional(v.id("alerts")),       // Schema arg
+  },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, {
+    const aId = args.alertId ?? args.id;
+    if (!aId) throw new Error("Must provide alertId or id");
+
+    await ctx.db.patch(aId, {
       status: "dismissed",
       updatedAt: Date.now(),
     });
-    return args.id;
+    return aId;
   },
 });
 
-// Dashboard stats
 export const stats = query({
   handler: async (ctx) => {
     const active = await ctx.db

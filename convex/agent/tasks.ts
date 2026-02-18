@@ -4,16 +4,23 @@ import { mutation, query } from "../_generated/server";
 // ============================================================
 // AGENT TASKS — Meat Bag Director Task System
 // ============================================================
+// Dashboard contract: api.agent.tasks.list / .create / .updateStatus / .complete
+// Contract uses "category" where schema uses "type".
+// ============================================================
 
 export const list = query({
   args: {
     status: v.optional(v.string()),
+    category: v.optional(v.string()),     // Dashboard contract name
+    type: v.optional(v.string()),         // Schema name
     priority: v.optional(v.string()),
     assignedTo: v.optional(v.string()),
-    type: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Map contract "category" to schema "type"
+    const typeFilter = args.category ?? args.type;
+
     if (args.status) {
       return await ctx.db
         .query("tasks")
@@ -35,10 +42,10 @@ export const list = query({
         .order("desc")
         .take(args.limit ?? 50);
     }
-    if (args.type) {
+    if (typeFilter) {
       return await ctx.db
         .query("tasks")
-        .withIndex("by_type", (q) => q.eq("type", args.type!))
+        .withIndex("by_type", (q) => q.eq("type", typeFilter))
         .order("desc")
         .take(args.limit ?? 50);
     }
@@ -70,12 +77,10 @@ export const getPending = query({
       .withIndex("by_status", (q) => q.eq("status", "in_progress"))
       .collect();
 
-    return [...pending, ...assigned, ...inProgress].sort(
-      (a, b) => {
-        const priorityOrder: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
-        return (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
-      }
-    );
+    return [...pending, ...assigned, ...inProgress].sort((a, b) => {
+      const priorityOrder: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+      return (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
+    });
   },
 });
 
@@ -90,8 +95,10 @@ export const create = mutation({
   args: {
     title: v.string(),
     description: v.string(),
-    type: v.string(),
-    priority: v.optional(v.string()),
+    // Accept both contract "category" and schema "type"
+    category: v.optional(v.string()),
+    type: v.optional(v.string()),
+    priority: v.optional(v.string()),     // Contract says required, but default to "normal"
     assignedTo: v.optional(v.string()),
     dueAt: v.optional(v.number()),
     slaHours: v.optional(v.number()),
@@ -104,6 +111,7 @@ export const create = mutation({
     agentContext: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const taskType = args.type ?? args.category ?? "general";
     const now = Date.now();
     const slaHours = args.slaHours ?? 24;
     const dueAt = args.dueAt ?? now + slaHours * 60 * 60 * 1000;
@@ -111,7 +119,7 @@ export const create = mutation({
     return await ctx.db.insert("tasks", {
       title: args.title,
       description: args.description,
-      type: args.type,
+      type: taskType,
       priority: args.priority ?? "normal",
       status: args.assignedTo ? "assigned" : "pending",
       assignedTo: args.assignedTo,
@@ -127,6 +135,60 @@ export const create = mutation({
       agentContext: args.agentContext,
       updatedAt: now,
     });
+  },
+});
+
+// ============================================================
+// CONTRACT: api.agent.tasks.updateStatus
+// Generic status update — validates transitions.
+// ============================================================
+const TASK_TRANSITIONS: Record<string, string[]> = {
+  pending: ["assigned", "in_progress", "cancelled"],
+  assigned: ["in_progress", "cancelled"],
+  in_progress: ["completed", "escalated", "cancelled"],
+  completed: ["verified"],
+  verified: [],
+  escalated: ["in_progress", "assigned", "cancelled"],
+  cancelled: [],
+};
+
+export const updateStatus = mutation({
+  args: {
+    // Contract args
+    taskId: v.optional(v.id("tasks")),
+    status: v.optional(v.string()),
+    // Extended args
+    id: v.optional(v.id("tasks")),
+    newStatus: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const tId = args.taskId ?? args.id;
+    const targetStatus = args.status ?? args.newStatus;
+
+    if (!tId) throw new Error("Must provide taskId or id");
+    if (!targetStatus) throw new Error("Must provide status or newStatus");
+
+    const task = await ctx.db.get(tId);
+    if (!task) throw new Error("Task not found");
+
+    const allowed = TASK_TRANSITIONS[task.status];
+    if (allowed && !allowed.includes(targetStatus)) {
+      throw new Error(
+        `Cannot transition task from "${task.status}" to "${targetStatus}". Allowed: ${allowed.join(", ")}`
+      );
+    }
+
+    const updates: Record<string, unknown> = {
+      status: targetStatus,
+      updatedAt: Date.now(),
+    };
+
+    if (targetStatus === "completed") {
+      updates.completedAt = Date.now();
+    }
+
+    await ctx.db.patch(tId, updates);
+    return { id: tId, status: targetStatus };
   },
 });
 
@@ -162,24 +224,35 @@ export const startWork = mutation({
   },
 });
 
+// ============================================================
+// CONTRACT: api.agent.tasks.complete
+// Accepts both contract args (taskId) and schema args (id).
+// completedBy defaults to "dashboard" if not provided.
+// ============================================================
 export const complete = mutation({
   args: {
-    id: v.id("tasks"),
-    completedBy: v.string(),
+    // Contract args
+    taskId: v.optional(v.id("tasks")),
+    // Schema args
+    id: v.optional(v.id("tasks")),
+    completedBy: v.optional(v.string()),  // Contract doesn't send this; default to "dashboard"
     completionNotes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const task = await ctx.db.get(args.id);
+    const tId = args.taskId ?? args.id;
+    if (!tId) throw new Error("Must provide taskId or id");
+
+    const task = await ctx.db.get(tId);
     if (!task) throw new Error("Task not found");
 
-    await ctx.db.patch(args.id, {
+    await ctx.db.patch(tId, {
       status: "completed",
       completedAt: Date.now(),
-      completedBy: args.completedBy,
+      completedBy: args.completedBy ?? "dashboard",
       completionNotes: args.completionNotes,
       updatedAt: Date.now(),
     });
-    return args.id;
+    return tId;
   },
 });
 
@@ -220,7 +293,6 @@ export const escalate = mutation({
       updatedAt: Date.now(),
     };
 
-    // Auto-bump priority on escalation
     if (newLevel === 1) updates.priority = "high";
     if (newLevel >= 2) updates.priority = "urgent";
     if (args.newPriority) updates.priority = args.newPriority;
@@ -245,7 +317,6 @@ export const cancel = mutation({
   },
 });
 
-// Dashboard stats
 export const stats = query({
   handler: async (ctx) => {
     const all = await ctx.db.query("tasks").collect();

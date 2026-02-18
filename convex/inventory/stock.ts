@@ -4,6 +4,9 @@ import { mutation, query, internalMutation } from "../_generated/server";
 // ============================================================
 // INVENTORY — Stock Level Management
 // ============================================================
+// Dashboard contract exports: listWithDetails, adjust
+// Extended exports for MCP/agent: list, listEnriched, adjustQuantity, etc.
+// ============================================================
 
 export const list = query({
   args: {
@@ -50,7 +53,63 @@ export const getByComponentLocation = query({
   },
 });
 
-// Enriched inventory list with component and location details
+// ============================================================
+// CONTRACT: api.inventory.stock.listWithDetails
+// Returns enriched inventory rows matching the dashboard contract shape.
+// ============================================================
+export const listWithDetails = query({
+  args: {
+    search: v.optional(v.string()),
+    status: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    let records;
+    if (args.status) {
+      records = await ctx.db
+        .query("inventory")
+        .withIndex("by_status", (q) => q.eq("status", args.status!))
+        .take(args.limit ?? 200);
+    } else {
+      records = await ctx.db.query("inventory").take(args.limit ?? 200);
+    }
+
+    const enriched = await Promise.all(
+      records.map(async (inv) => {
+        const component = await ctx.db.get(inv.componentId);
+        const location = await ctx.db.get(inv.locationId);
+        return {
+          _id: inv._id,
+          componentId: inv.componentId,
+          componentName: component?.name ?? "Unknown",
+          partNumber: component?.partNumber ?? "Unknown",
+          locationName: location?.name ?? "Unknown",
+          quantity: inv.quantity,
+          reservedQuantity: inv.reservedQty,
+          availableQuantity: inv.availableQty,
+          status: inv.status,
+          costPerUnit: inv.costPerUnit,
+          lastCountedAt: inv.lastCountedAt,
+          updatedAt: inv.updatedAt,
+        };
+      })
+    );
+
+    // Client-side search filter (search across component name and part number)
+    if (args.search && args.search.trim().length > 0) {
+      const term = args.search.toLowerCase();
+      return enriched.filter(
+        (r) =>
+          r.componentName.toLowerCase().includes(term) ||
+          r.partNumber.toLowerCase().includes(term)
+      );
+    }
+
+    return enriched;
+  },
+});
+
+// Backward compat: listEnriched (used by MCP/agents)
 export const listEnriched = query({
   args: {
     status: v.optional(v.string()),
@@ -84,7 +143,6 @@ export const listEnriched = query({
   },
 });
 
-// Get total stock across all locations for a component
 export const getTotalStock = query({
   args: { componentId: v.id("components") },
   handler: async (ctx, args) => {
@@ -124,6 +182,7 @@ export const upsert = mutation({
     quantity: v.number(),
     minimumStock: v.optional(v.number()),
     maximumStock: v.optional(v.number()),
+    costPerUnit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -141,6 +200,7 @@ export const upsert = mutation({
         availableQty: args.quantity - existing.reservedQty,
         minimumStock: args.minimumStock ?? existing.minimumStock,
         maximumStock: args.maximumStock ?? existing.maximumStock,
+        costPerUnit: args.costPerUnit ?? existing.costPerUnit,
         status,
         updatedAt: Date.now(),
       });
@@ -155,6 +215,7 @@ export const upsert = mutation({
       availableQty: args.quantity,
       minimumStock: args.minimumStock,
       maximumStock: args.maximumStock,
+      costPerUnit: args.costPerUnit,
       status,
       lastCountedAt: undefined,
       lastCountedBy: undefined,
@@ -163,7 +224,58 @@ export const upsert = mutation({
   },
 });
 
-// Adjust stock (used by transactions system)
+// ============================================================
+// CONTRACT: api.inventory.stock.adjust
+// Takes absolute newQuantity (contract) and computes delta internally.
+// Also records an inventory transaction for audit trail.
+// ============================================================
+export const adjust = mutation({
+  args: {
+    inventoryId: v.id("inventory"),
+    newQuantity: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const record = await ctx.db.get(args.inventoryId);
+    if (!record) throw new Error("Inventory record not found");
+
+    if (args.newQuantity < 0) throw new Error("Quantity cannot be negative");
+
+    const previousQty = record.quantity;
+    const delta = args.newQuantity - previousQty;
+    const newAvailable = args.newQuantity - record.reservedQty;
+    const status = computeStatus(
+      args.newQuantity,
+      record.minimumStock ?? undefined,
+      record.maximumStock ?? undefined
+    );
+
+    await ctx.db.patch(args.inventoryId, {
+      quantity: args.newQuantity,
+      availableQty: newAvailable,
+      status,
+      updatedAt: Date.now(),
+    });
+
+    // Record audit trail transaction
+    await ctx.db.insert("inventoryTransactions", {
+      type: "adjust",
+      componentId: record.componentId,
+      locationId: record.locationId,
+      quantity: delta,
+      previousQty,
+      newQty: args.newQuantity,
+      referenceType: "manual",
+      reason: args.reason,
+      performedBy: "dashboard",
+      timestamp: Date.now(),
+    });
+
+    return { id: args.inventoryId, previousQty, newQty: args.newQuantity, status };
+  },
+});
+
+// MCP/Agent: delta-based adjustment (original function)
 export const adjustQuantity = mutation({
   args: {
     id: v.id("inventory"),
@@ -191,7 +303,6 @@ export const adjustQuantity = mutation({
   },
 });
 
-// Reserve stock for build orders
 export const reserveStock = mutation({
   args: {
     id: v.id("inventory"),
@@ -220,7 +331,6 @@ export const reserveStock = mutation({
   },
 });
 
-// Release reserved stock
 export const releaseReservation = mutation({
   args: {
     id: v.id("inventory"),
@@ -243,7 +353,6 @@ export const releaseReservation = mutation({
   },
 });
 
-// Record a physical count
 export const recordCount = mutation({
   args: {
     id: v.id("inventory"),
@@ -276,7 +385,6 @@ export const recordCount = mutation({
   },
 });
 
-// Low stock report
 export const lowStockReport = query({
   handler: async (ctx) => {
     const lowStock = await ctx.db

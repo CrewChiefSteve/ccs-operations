@@ -20,6 +20,7 @@ export default defineSchema({
     subcategory: v.optional(v.string()),
     manufacturer: v.optional(v.string()),
     manufacturerPartNumber: v.optional(v.string()),
+    unitOfMeasure: v.optional(v.string()), // "each", "meter", "gram", "ml", "ft", "roll"
     specs: v.optional(v.object({
       package: v.optional(v.string()),
       value: v.optional(v.string()),     // "10kΩ", "100nF", etc.
@@ -55,16 +56,22 @@ export default defineSchema({
     code: v.string(),              // Short code: "DK", "MOU", "JLC"
     website: v.optional(v.string()),
     accountNumber: v.optional(v.string()),
+    contactName: v.optional(v.string()),  // Primary contact name
     contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     notes: v.optional(v.string()),
-    leadTimeDays: v.optional(v.number()),  // Typical lead time
+    rating: v.optional(v.number()),       // 1-5 supplier rating
+    leadTimeDays: v.optional(v.number()), // Typical lead time
     shippingNotes: v.optional(v.string()),
     status: v.string(),            // "active", "inactive", "preferred"
     updatedAt: v.number(),
   })
     .index("by_code", ["code"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .searchIndex("search_suppliers", {
+      searchField: "name",
+      filterFields: ["status"],
+    }),
 
   // ----------------------------------------------------------
   // COMPONENT ↔ SUPPLIER JUNCTION (pricing/availability)
@@ -116,6 +123,7 @@ export default defineSchema({
     availableQty: v.number(),      // quantity - reservedQty
     minimumStock: v.optional(v.number()),  // Reorder threshold
     maximumStock: v.optional(v.number()),
+    costPerUnit: v.optional(v.number()),   // Unit cost for value calculations
     lastCountedAt: v.optional(v.number()),
     lastCountedBy: v.optional(v.string()),
     status: v.string(),            // "in_stock", "low_stock", "out_of_stock", "overstock"
