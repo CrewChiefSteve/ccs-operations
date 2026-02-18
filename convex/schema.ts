@@ -215,6 +215,8 @@ export default defineSchema({
     assignedTo: v.optional(v.string()),
     qcStatus: v.optional(v.string()),    // "pending", "passed", "failed", "rework"
     qcNotes: v.optional(v.string()),
+    qcPassedCount: v.optional(v.number()),
+    qcFailedCount: v.optional(v.number()),
     driveProductionDocId: v.optional(v.string()), // Link to Drive production docs
     notes: v.optional(v.string()),
     createdBy: v.optional(v.string()),

@@ -46,7 +46,8 @@ convex/
 │   ├── stock.ts                 # Inventory stock levels, reserve/release/count
 │   ├── bomEntries.ts            # BOM management + feasibility checker
 │   ├── purchaseOrders.ts        # PO lifecycle + line items + receiving
-│   ├── buildOrders.ts           # Build order lifecycle
+│   ├── buildOrders.ts           # Build order lifecycle (CRUD + simple status transition)
+│   ├── buildLifecycle.ts        # Full lifecycle orchestration: reserve→build→QC→complete (Phase 4B)
 │   ├── buildWorkflow.ts         # Material reservation, consumption, release + BOM feasibility
 │   ├── transactions.ts          # Append-only inventory audit trail
 │   ├── stockmonitor.ts          # Internal mutations: stock threshold + overdue PO checks
@@ -116,9 +117,18 @@ Custom tokens used throughout (defined in Tailwind config):
 - PO numbers: `PO-{YEAR}-{SEQ}` (e.g., `PO-2026-001`)
 - Build numbers: `BUILD-{PRODUCT_CODE}-{YEAR}-{SEQ}` (e.g., `BUILD-OH-2026-001`)
 
+## MCP Servers
+
+| Package | Purpose |
+|---|---|
+| `packages/drive-mcp/` | Google Drive read access (Phase 1) |
+| `packages/inventory-mcp/` | Read-only inventory/build/ops queries (Phase 4B) — 16 tools, 3 resources, 4 prompts |
+
+The `inventory-mcp` connects via `ConvexHttpClient` to `CONVEX_URL` (dev: `rugged-heron-983.convex.cloud`). Configure in `~/.claude/claude_desktop_config.json`.
+
 ## Phase Status
 - ✅ Phase 1: Google Drive MCP Server (in `packages/drive-mcp/`)
 - ✅ Phase 2: Convex schema + backend mutations/queries
 - ✅ Phase 3: Inventory agent + transaction workflows (stock monitor, receiving workflow, build workflow, task SLA escalation cron)
 - ✅ Phase 4A: Cross-system intelligence (BOM sync, daily briefing, 3 new schema tables: bomChangeLogs, briefings, bomSnapshots)
-- 🔲 Phase 4B: Build order lifecycle, inventory-mcp server, dashboard pages for BOM changes and briefings
+- ✅ Phase 4B: Build order lifecycle (`buildLifecycle.ts`), inventory MCP server (`packages/inventory-mcp/`)
