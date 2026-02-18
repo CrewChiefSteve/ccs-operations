@@ -37,6 +37,7 @@ convex/
 ├── schema.ts                    # All 14 tables with validators and indexes
 ├── auth.config.ts               # Clerk provider config
 ├── dashboard.ts                 # Aggregate overview query
+├── crons.ts                     # Scheduled jobs (stock monitor, PO overdue check)
 ├── inventory/
 │   ├── components.ts            # Part catalog CRUD
 │   ├── suppliers.ts             # Vendor directory CRUD
@@ -46,7 +47,9 @@ convex/
 │   ├── bomEntries.ts            # BOM management + feasibility checker
 │   ├── purchaseOrders.ts        # PO lifecycle + line items + receiving
 │   ├── buildOrders.ts           # Build order lifecycle
-│   └── transactions.ts          # Append-only inventory audit trail
+│   ├── transactions.ts          # Append-only inventory audit trail
+│   ├── stockmonitor.ts          # Internal mutations: stock threshold + overdue PO checks
+│   └── receiving.ts             # Full receive-from-PO workflow (PO→txn→stock→alerts)
 ├── agent/
 │   ├── alerts.ts                # Agent-generated alerts with lifecycle
 │   └── tasks.ts                 # Meat Bag Director task system with SLA/escalation
@@ -96,6 +99,9 @@ Custom tokens used throughout (defined in Tailwind config):
 - **Transactions** are append-only with before/after snapshots
 - **Tasks** have SLA tracking with auto-escalation (24hr → priority bump, 48hr → notify other founder)
 - **Enriched queries** join component/supplier/location names for dashboard display
+- **Cron jobs** use `internalMutation` — not exposed to clients, only called by scheduler
+- **Stock monitor** deduplicates alerts per component — won't create duplicates for the same issue
+- **Receiving workflow** is atomic per PO — updates lines + stock + transactions + auto-resolves alerts in one mutation
 
 ## Conventions
 - All timestamps are `Date.now()` (milliseconds since epoch)
@@ -108,5 +114,5 @@ Custom tokens used throughout (defined in Tailwind config):
 ## Phase Status
 - ✅ Phase 1: Google Drive MCP Server (in `packages/drive-mcp/`)
 - ✅ Phase 2: Convex schema + backend mutations/queries
-- 🔲 Phase 3: Inventory agent + transaction workflows
+- 🔶 Phase 3: Inventory agent + transaction workflows (stock monitor cron + receiving workflow done; task escalation, mobile receiving UI pending)
 - 🔲 Phase 4: Cross-system intelligence + inventory-mcp
