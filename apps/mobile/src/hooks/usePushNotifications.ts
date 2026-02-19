@@ -8,17 +8,6 @@ import { router } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo";
 import { api } from "../convex-api";
 
-// Configure how notifications appear when app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 export function usePushNotifications() {
   const { userId } = useAuth();
   const registerToken = useMutation(api.notifications.registerToken);
@@ -28,6 +17,17 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!userId) return;
+
+    // Set handler inside effect so it only runs after native module is ready
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
 
     registerForPush().then((token) => {
       if (token) {
