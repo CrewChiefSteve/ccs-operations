@@ -14,4 +14,12 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
+// Force single React instance — prevents duplicate React from hoisted deps
+// (e.g. @clerk/clerk-react bundles React 19 while mobile uses React 18)
+config.resolver.extraNodeModules = {
+  react: path.resolve(__dirname, 'node_modules/react'),
+  'react-native': path.resolve(__dirname, 'node_modules/react-native'),
+  'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+};
+
 module.exports = config;
