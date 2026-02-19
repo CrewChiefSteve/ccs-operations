@@ -7,4 +7,5 @@ dist/
 *.tgz
 .DS_Store
 .turbo
+.expo/
 convex/_generated/
