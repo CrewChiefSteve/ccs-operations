@@ -338,7 +338,7 @@ export default function TasksPage() {
               <div>
                 <p className="text-2xs text-text-tertiary">Created</p>
                 <p className="text-text-primary">
-                  {formatDate(selectedTask.createdAt)}
+                  {formatDate(selectedTask._creationTime)}
                   {selectedTask.createdBy === "agent" && (
                     <span className="ml-1.5 font-mono text-2xs text-accent/60">
                       by agent
