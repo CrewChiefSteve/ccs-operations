@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { ConvexReactClient, useMutation } from "convex/react";
 import { ClerkProvider, useAuth, useUser } from "@clerk/nextjs";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
@@ -34,6 +34,21 @@ function ProfileSync({ children }: { children: ReactNode }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  // Guard: skip providers during static prerendering (SSR/SSG).
+  // Next.js prerenders /_error, /404, /500 pages statically. During that
+  // phase, ClerkProvider and ConvexProviderWithClerk call useContext which
+  // fails if there are React version mismatches in the monorepo, or if
+  // the React server environment doesn't support the context. Deferring
+  // to client-only rendering avoids this entirely.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    // Render children without providers during SSR — the page shell
+    // still renders, and providers attach on the client.
+    return <>{children}</>;
+  }
+
   return (
     <ClerkProvider
       appearance={{
