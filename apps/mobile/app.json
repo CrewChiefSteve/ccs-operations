@@ -19,7 +19,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to scan barcodes and capture shipment photos",
         "NSPhotoLibraryUsageDescription": "Photo library access is used to attach shipment photos to PO receipts",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
