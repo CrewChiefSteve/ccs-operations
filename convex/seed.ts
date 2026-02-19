@@ -3,19 +3,12 @@ import { mutation } from "./_generated/server";
 // ============================================================
 // SEED DATA — CCS Technologies Operational Platform
 // ============================================================
-// Run with: npx convex run seed:run
+// Run:   npx convex run seed:run
+// Clear: npx convex run seed:clear
 //
-// Populates the database with:
-//   - Warehouse locations (105 Hathaway Ln, Unit 103)
-//   - Suppliers (Amazon, plus placeholders for DigiKey/Mouser/JLCPCB)
-//   - Components (real parts from Amazon orders + known product BOMs)
-//   - Component-Supplier links with pricing
-//   - BOM entries for all 5 products
-//   - Test inventory (fake quantities — clean out later)
-//   - Sample purchase order + build order
-//   - Sample alerts and tasks to exercise the dashboard
-//
-// SAFE TO RE-RUN: Checks for existing data before inserting.
+// Inserts real CCS components, realistic inventory levels,
+// active POs, alerts, and tasks so every mobile screen has
+// content to display.
 // ============================================================
 
 export const run = mutation({
@@ -29,133 +22,29 @@ export const run = mutation({
     }
 
     const now = Date.now();
-    const results: Record<string, number> = {};
+    const DAY = 24 * 60 * 60 * 1000;
 
     // ===========================================================
-    // 1. LOCATIONS — 105 Hathaway Ln, Unit 103, Mooresville NC
+    // 1. SUPPLIERS
     // ===========================================================
-    const locUnit = await ctx.db.insert("locations", {
-      name: "Unit 103",
-      code: "U103",
-      type: "room",
-      description: "105 Hathaway Ln, Unit 103, Mooresville, NC 28117 — CCS Technologies HQ",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locWorkbench = await ctx.db.insert("locations", {
-      name: "Main Workbench",
-      code: "U103-WB",
-      type: "zone",
-      parentId: locUnit,
-      description: "Primary electronics assembly area",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locShelfA = await ctx.db.insert("locations", {
-      name: "Shelf A — MCUs & Dev Boards",
-      code: "U103-SA",
-      type: "shelf",
-      parentId: locUnit,
-      description: "Microcontrollers, dev boards, programmer tools",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locShelfB = await ctx.db.insert("locations", {
-      name: "Shelf B — Sensors & Modules",
-      code: "U103-SB",
-      type: "shelf",
-      parentId: locUnit,
-      description: "Sensors, breakout boards, display modules",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locShelfC = await ctx.db.insert("locations", {
-      name: "Shelf C — Passives & Connectors",
-      code: "U103-SC",
-      type: "shelf",
-      parentId: locUnit,
-      description: "Resistors, capacitors, connectors, wire, solder",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locShelfD = await ctx.db.insert("locations", {
-      name: "Shelf D — Power & Batteries",
-      code: "U103-SD",
-      type: "shelf",
-      parentId: locUnit,
-      description: "Power supplies, batteries, charger modules, SSRs",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locBinPCB = await ctx.db.insert("locations", {
-      name: "PCB Storage Bin",
-      code: "U103-PCB",
-      type: "bin",
-      parentId: locUnit,
-      description: "Custom PCBs and protoboards",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locEnclosures = await ctx.db.insert("locations", {
-      name: "Enclosure Storage",
-      code: "U103-ENC",
-      type: "bin",
-      parentId: locUnit,
-      description: "Project boxes, 3D printed enclosures, hardware",
-      status: "active",
-      updatedAt: now,
-    });
-
-    const locInbound = await ctx.db.insert("locations", {
-      name: "Inbound / Receiving",
-      code: "U103-IN",
-      type: "zone",
-      parentId: locUnit,
-      description: "Packages awaiting intake processing",
-      status: "active",
-      updatedAt: now,
-    });
-
-    results.locations = 9;
-
-    // ===========================================================
-    // 2. SUPPLIERS
-    // ===========================================================
-    const supAmazon = await ctx.db.insert("suppliers", {
-      name: "Amazon",
-      code: "AMZ",
-      website: "https://www.amazon.com",
-      contactEmail: undefined,
-      notes: "Primary supplier for dev boards and prototyping components. Prime shipping.",
-      leadTimeDays: 2,
-      shippingNotes: "Free 2-day with Prime",
-      status: "active",
-      updatedAt: now,
-    });
-
     const supDigiKey = await ctx.db.insert("suppliers", {
       name: "DigiKey",
       code: "DK",
       website: "https://www.digikey.com",
-      notes: "Production-grade components. Better pricing at volume.",
+      notes: "Primary electronics supplier, fast shipping",
+      rating: 5,
       leadTimeDays: 3,
       shippingNotes: "Free shipping over $50",
-      status: "active",
+      status: "preferred",
       updatedAt: now,
     });
 
     const supMouser = await ctx.db.insert("suppliers", {
-      name: "Mouser Electronics",
+      name: "Mouser",
       code: "MOU",
       website: "https://www.mouser.com",
-      notes: "Wide selection, good for hard-to-find parts",
+      notes: "Good for specialty ICs",
+      rating: 4,
       leadTimeDays: 3,
       shippingNotes: "Free shipping over $50",
       status: "active",
@@ -166,674 +55,670 @@ export const run = mutation({
       name: "JLCPCB",
       code: "JLC",
       website: "https://jlcpcb.com",
-      notes: "PCB fabrication and SMT assembly. 5-day production + shipping from China.",
+      notes: "PCBs and SMT assembly",
+      rating: 4,
       leadTimeDays: 14,
       shippingNotes: "DHL Express ~5 days from Shenzhen",
       status: "active",
       updatedAt: now,
     });
 
-    results.suppliers = 4;
-
     // ===========================================================
-    // 3. COMPONENTS
+    // 2. COMPONENTS
     // ===========================================================
-
-    // --- MCU / Dev Boards ---
-    const cESP32S3 = await ctx.db.insert("components", {
-      partNumber: "CCS-MCU-001",
-      name: "ESP32-S3-DevKitC-1 N16R8",
-      description: "ESP32-S3 dev board with 16MB Flash, 8MB PSRAM, dual Type-C, WiFi + BLE",
-      category: "microcontroller",
-      subcategory: "dev_board",
-      manufacturer: "Espressif (YEJMKJ)",
-      manufacturerPartNumber: "ESP32-S3-DevKitC-1-N16R8",
-      unitOfMeasure: "each",
-      specs: { voltage: "3.3V", custom: { flash: "16MB", psram: "8MB", cores: 2 } },
-      notes: "Amazon order Feb 13, 2026 — 2pcs. Used for display/UI applications.",
-      status: "active",
-      usedInProducts: ["RaceScale", "Tire_Temperature"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
     const cESP32C3 = await ctx.db.insert("components", {
-      partNumber: "CCS-MCU-002",
-      name: "ESP32-C3-DevKitM-1",
-      description: "ESP32-C3 RISC-V dev board, WiFi + BLE 5.0, dual Type-C",
-      category: "microcontroller",
-      subcategory: "dev_board",
-      manufacturer: "Espressif (HiLetgo)",
+      partNumber: "CCS-MCU-001",
+      name: "ESP32-C3 SuperMini",
+      description: "Low-power WiFi+BLE MCU, RISC-V core. Used in Oil Heater Controller, RaceScale, Tire Temp Probe",
+      category: "mcu",
+      subcategory: "wifi_ble",
+      manufacturer: "Espressif",
       manufacturerPartNumber: "ESP32-C3-MINI-1",
       unitOfMeasure: "each",
-      specs: { voltage: "3.3V", custom: { flash: "4MB", cores: 1, arch: "RISC-V" } },
-      notes: "Amazon order Jan 19, 2026. Primary BLE controller for sensor devices.",
+      specs: { voltage: "3.3V", custom: { flash: "4MB", arch: "RISC-V", cores: 1 } },
       status: "active",
-      usedInProducts: ["Ride_Height_Sensor", "Tire-Temp-Probe"],
+      usedInProducts: ["Oil_Heater_Controller", "RaceScale", "Tire-Temp-Probe"],
       createdBy: "seed",
       updatedAt: now,
     });
 
-    const cESP32DevKit = await ctx.db.insert("components", {
-      partNumber: "CCS-MCU-003",
-      name: "ESP32 DevKit V1 (WROOM-32)",
-      description: "Classic ESP32 dev board, WiFi + BLE, dual core",
-      category: "microcontroller",
-      subcategory: "dev_board",
+    const cESP32S3 = await ctx.db.insert("components", {
+      partNumber: "CCS-MCU-002",
+      name: "ESP32-S3 DevKitC",
+      description: "Dual-core WiFi+BLE MCU with USB OTG. Used in Ride Height Sensor",
+      category: "mcu",
+      subcategory: "wifi_ble",
       manufacturer: "Espressif",
-      manufacturerPartNumber: "ESP32-WROOM-32",
+      manufacturerPartNumber: "ESP32-S3-WROOM-1",
       unitOfMeasure: "each",
-      specs: { voltage: "3.3V", custom: { flash: "4MB", cores: 2 } },
-      notes: "Oil Heater controller board. Running PlatformIO firmware.",
-      status: "active",
-      usedInProducts: ["Oil_Heater_Controller"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    const cWaveshare7 = await ctx.db.insert("components", {
-      partNumber: "CCS-DSP-001",
-      name: 'Waveshare 7" ESP32-S3 LCD Touch Display',
-      description: "7 inch 800x480 capacitive touch display with onboard ESP32-S3, UART interface",
-      category: "display",
-      subcategory: "lcd_module",
-      manufacturer: "Waveshare",
-      unitOfMeasure: "each",
-      specs: { custom: { resolution: "800x480", interface: "UART", touch: "capacitive" } },
-      notes: "Oil Heater display board. Runs Arduino + LVGL graphics. Communicates with controller via UART.",
-      status: "active",
-      usedInProducts: ["Oil_Heater_Controller"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    // --- Sensors ---
-    const cMAX6675 = await ctx.db.insert("components", {
-      partNumber: "CCS-SEN-001",
-      name: "MAX6675 Thermocouple Module",
-      description: "K-type thermocouple to digital converter, SPI interface, 0-1024°C",
-      category: "sensor",
-      subcategory: "temperature",
-      manufacturer: "Maxim Integrated",
-      manufacturerPartNumber: "MAX6675",
-      unitOfMeasure: "each",
-      specs: { voltage: "3.3-5V", temperature: "0-1024°C", custom: { interface: "SPI", resolution: "0.25°C" } },
-      notes: "Oil Heater primary temperature sensor. Reads oil sump temperature.",
-      status: "active",
-      usedInProducts: ["Oil_Heater_Controller"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    const cVL53L1X = await ctx.db.insert("components", {
-      partNumber: "CCS-SEN-002",
-      name: "TOF400C VL53L1X Laser Ranging Sensor Module",
-      description: "Time-of-Flight laser distance sensor, I2C, 4M range",
-      category: "sensor",
-      subcategory: "distance",
-      manufacturer: "STMicroelectronics",
-      manufacturerPartNumber: "VL53L1X",
-      unitOfMeasure: "each",
-      specs: { voltage: "3.3-5V", custom: { interface: "I2C", range: "4m", accuracy: "±1mm" } },
-      notes: "Amazon order Jan 19, 2026 — 4pcs. Ride height measurement sensor.",
+      specs: { voltage: "3.3V", custom: { flash: "8MB", psram: "8MB", cores: 2 } },
       status: "active",
       usedInProducts: ["Ride_Height_Sensor"],
       createdBy: "seed",
       updatedAt: now,
     });
 
-    const cDS18B20 = await ctx.db.insert("components", {
-      partNumber: "CCS-SEN-003",
-      name: "DS18B20 Waterproof Temperature Probe",
-      description: "1-Wire digital temperature sensor, stainless steel probe, 1m cable",
+    const cMAX6675 = await ctx.db.insert("components", {
+      partNumber: "CCS-SNS-001",
+      name: "MAX6675 Breakout Board",
+      description: "K-type thermocouple-to-digital converter, SPI interface. Oil Heater temp sensing",
       category: "sensor",
-      subcategory: "temperature",
-      manufacturer: "Dallas/Maxim",
-      manufacturerPartNumber: "DS18B20",
+      subcategory: "thermocouple_interface",
+      manufacturer: "Maxim",
+      manufacturerPartNumber: "MAX6675ISA+",
       unitOfMeasure: "each",
-      specs: { voltage: "3.0-5.5V", temperature: "-55 to 125°C", custom: { interface: "1-Wire", accuracy: "±0.5°C" } },
-      notes: "Tire temperature probe sensor element.",
+      specs: { voltage: "3.3-5V", temperature: "0-1024°C", custom: { interface: "SPI" } },
       status: "active",
-      usedInProducts: ["Tire-Temp-Probe", "Tire_Temperature"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    const cMLX90614 = await ctx.db.insert("components", {
-      partNumber: "CCS-SEN-004",
-      name: "MLX90614 IR Temperature Sensor",
-      description: "Non-contact infrared temperature sensor, I2C, -70 to 380°C",
-      category: "sensor",
-      subcategory: "temperature",
-      manufacturer: "Melexis",
-      manufacturerPartNumber: "MLX90614ESF-BAA",
-      unitOfMeasure: "each",
-      specs: { voltage: "3.3V", temperature: "-70 to 380°C", custom: { interface: "I2C", fov: "90°" } },
-      notes: "Tire temperature gun — non-contact IR reading.",
-      status: "active",
-      usedInProducts: ["Tire_Temperature"],
+      usedInProducts: ["Oil_Heater_Controller"],
       createdBy: "seed",
       updatedAt: now,
     });
 
     const cHX711 = await ctx.db.insert("components", {
-      partNumber: "CCS-SEN-005",
+      partNumber: "CCS-SNS-002",
       name: "HX711 Load Cell Amplifier",
-      description: "24-bit ADC for load cells/strain gauges",
+      description: "24-bit ADC for load cells. RaceScale weight measurement",
       category: "sensor",
-      subcategory: "load_cell",
-      manufacturer: "Avia Semiconductor",
+      subcategory: "load_cell_amp",
+      manufacturer: "Avia",
       manufacturerPartNumber: "HX711",
       unitOfMeasure: "each",
       specs: { voltage: "2.7-5.5V", custom: { resolution: "24-bit", sampleRate: "10/80 SPS" } },
-      notes: "RaceScale ADC — reads 4 load cells for corner weight measurement.",
       status: "active",
       usedInProducts: ["RaceScale"],
       createdBy: "seed",
       updatedAt: now,
     });
 
-    // --- Power ---
-    const cTP4056 = await ctx.db.insert("components", {
-      partNumber: "CCS-PWR-001",
-      name: "TP4056 Type-C USB Charger Module",
-      description: "5V 1A lithium battery charger with dual protection (over-discharge + over-charge)",
-      category: "power",
-      subcategory: "charger",
-      manufacturer: "HiLetgo",
-      manufacturerPartNumber: "TP4056",
-      unitOfMeasure: "each",
-      specs: { voltage: "5V input", current: "1A charge", custom: { protection: "dual" } },
-      notes: "Amazon order Jan 19, 2026 — 3pcs. Battery charging for portable devices.",
-      status: "active",
-      usedInProducts: ["Ride_Height_Sensor", "Tire-Temp-Probe", "Tire_Temperature"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    const cLipo500 = await ctx.db.insert("components", {
-      partNumber: "CCS-PWR-002",
-      name: "EEMB 3.7V 500mAh LiPo Battery (403048)",
-      description: "Lithium polymer rechargeable battery, JST connector, 403048 form factor",
-      category: "power",
-      subcategory: "battery",
-      manufacturer: "EEMB",
-      manufacturerPartNumber: "403048",
-      unitOfMeasure: "each",
-      specs: { voltage: "3.7V", current: "500mAh", custom: { connector: "JST", formFactor: "403048" } },
-      notes: "Amazon order Jan 19, 2026. Portable device battery.",
-      status: "active",
-      usedInProducts: ["Ride_Height_Sensor", "Tire-Temp-Probe"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    const cSSR40A = await ctx.db.insert("components", {
-      partNumber: "CCS-PWR-003",
-      name: "SSR-40DA Solid State Relay 40A",
-      description: "40A 24-380VAC solid state relay, 3-32VDC control",
-      category: "power",
-      subcategory: "relay",
-      manufacturer: "Fotek",
-      manufacturerPartNumber: "SSR-40DA",
-      unitOfMeasure: "each",
-      specs: { voltage: "24-380VAC", current: "40A", custom: { control: "3-32VDC" } },
-      notes: "Oil Heater — switches the heating element on/off via PID control.",
-      status: "active",
-      usedInProducts: ["Oil_Heater_Controller"],
-      createdBy: "seed",
-      updatedAt: now,
-    });
-
-    // --- Passives & Connectors ---
-    const cKTypeProbe = await ctx.db.insert("components", {
-      partNumber: "CCS-CON-001",
-      name: "K-Type Thermocouple Probe (M6 thread)",
-      description: "K-type thermocouple with M6 threaded tip, 1m cable, -50 to 500°C",
+    const cVL53L0X = await ctx.db.insert("components", {
+      partNumber: "CCS-SNS-003",
+      name: "VL53L0X ToF Sensor",
+      description: "Time-of-flight laser distance sensor, I2C. Ride Height Sensor",
       category: "sensor",
-      subcategory: "thermocouple",
-      manufacturer: "Generic",
+      subcategory: "distance",
+      manufacturer: "STMicroelectronics",
+      manufacturerPartNumber: "VL53L0X",
       unitOfMeasure: "each",
-      specs: { temperature: "-50 to 500°C", custom: { type: "K", thread: "M6" } },
-      notes: "Oil Heater — screws into oil sump drain plug for temperature reading.",
+      specs: { voltage: "2.6-3.5V", custom: { interface: "I2C", range: "2m" } },
       status: "active",
-      usedInProducts: ["Oil_Heater_Controller"],
+      usedInProducts: ["Ride_Height_Sensor"],
       createdBy: "seed",
       updatedAt: now,
     });
 
-    const cJSTConn = await ctx.db.insert("components", {
-      partNumber: "CCS-CON-002",
-      name: "JST-PH 2.0mm 2-Pin Connector Pair",
-      description: "JST PH 2-pin male header + female housing with pre-crimped wires",
-      category: "connector",
-      subcategory: "jst",
-      manufacturer: "JST",
+    const cCap100nF = await ctx.db.insert("components", {
+      partNumber: "CCS-PAS-001",
+      name: "0.1uF Ceramic Capacitor",
+      description: "100nF 50V X7R 0603 decoupling cap",
+      category: "passive",
+      subcategory: "capacitor",
+      manufacturer: "Samsung",
+      manufacturerPartNumber: "CL10B104KB8NNNC",
       unitOfMeasure: "each",
-      specs: { custom: { pitch: "2.0mm", pins: 2, type: "PH" } },
-      notes: "Battery connector standard across portable CCS devices.",
+      specs: { value: "100nF", voltage: "50V", custom: { package: "0603", dielectric: "X7R" } },
       status: "active",
-      usedInProducts: ["Ride_Height_Sensor", "Tire-Temp-Probe", "Tire_Temperature"],
+      usedInProducts: ["Oil_Heater_Controller", "RaceScale", "Ride_Height_Sensor"],
+      createdBy: "seed",
+      updatedAt: now,
+    });
+
+    const cRes10K = await ctx.db.insert("components", {
+      partNumber: "CCS-PAS-002",
+      name: "10K Ohm Resistor",
+      description: "10K 1% 0603 resistor, pull-ups and voltage dividers",
+      category: "passive",
+      subcategory: "resistor",
+      manufacturer: "Yageo",
+      manufacturerPartNumber: "RC0603FR-0710KL",
+      unitOfMeasure: "each",
+      specs: { value: "10kΩ", tolerance: "1%", custom: { package: "0603" } },
+      status: "active",
+      usedInProducts: ["Oil_Heater_Controller", "RaceScale", "Ride_Height_Sensor"],
       createdBy: "seed",
       updatedAt: now,
     });
 
     const cUSBC = await ctx.db.insert("components", {
-      partNumber: "CCS-CON-003",
-      name: "USB Type-C Breakout Board",
-      description: "USB-C female connector breakout to pins, supports data + charging",
+      partNumber: "CCS-CON-001",
+      name: "USB-C Connector",
+      description: "USB Type-C 2.0 receptacle, SMD. Power and data for all devices",
       category: "connector",
       subcategory: "usb",
-      manufacturer: "Generic",
+      manufacturer: "GCT",
+      manufacturerPartNumber: "USB4110-GF-A",
       unitOfMeasure: "each",
-      specs: { custom: { type: "USB-C", pins: "breakout" } },
+      specs: { custom: { type: "USB-C 2.0", mounting: "SMD" } },
+      status: "active",
+      usedInProducts: ["Oil_Heater_Controller", "RaceScale", "Ride_Height_Sensor"],
+      createdBy: "seed",
+      updatedAt: now,
+    });
+
+    const cPCBOilHeater = await ctx.db.insert("components", {
+      partNumber: "CCS-PCB-001",
+      name: "Oil Heater Controller PCB Rev C",
+      description: "4-layer PCB for Oil Heater Controller, 80x50mm",
+      category: "pcb",
+      subcategory: "custom",
+      manufacturer: "JLCPCB",
+      unitOfMeasure: "each",
+      specs: { custom: { layers: 4, size: "80x50mm", revision: "C" } },
       status: "active",
       usedInProducts: ["Oil_Heater_Controller"],
       createdBy: "seed",
       updatedAt: now,
     });
 
-    const cLoadCell50kg = await ctx.db.insert("components", {
-      partNumber: "CCS-SEN-006",
-      name: "50kg Load Cell (Half-Bridge)",
-      description: "50kg half-bridge strain gauge load cell for platform scales",
-      category: "sensor",
-      subcategory: "load_cell",
-      manufacturer: "Generic",
+    const cPCBRaceScale = await ctx.db.insert("components", {
+      partNumber: "CCS-PCB-002",
+      name: "RaceScale Main PCB Rev B",
+      description: "2-layer PCB for RaceScale, 60x40mm",
+      category: "pcb",
+      subcategory: "custom",
+      manufacturer: "JLCPCB",
       unitOfMeasure: "each",
-      specs: { custom: { capacity: "50kg", type: "half-bridge" } },
-      notes: "RaceScale — 4 per scale pad, 16 total per 4-corner system.",
+      specs: { custom: { layers: 2, size: "60x40mm", revision: "B" } },
       status: "active",
       usedInProducts: ["RaceScale"],
       createdBy: "seed",
       updatedAt: now,
     });
 
-    const cProjectBox = await ctx.db.insert("components", {
-      partNumber: "CCS-ENC-001",
-      name: "ABS Project Box 150x100x50mm",
-      description: "Black ABS plastic project enclosure with screw-down lid",
-      category: "enclosure",
-      manufacturer: "Generic",
-      unitOfMeasure: "each",
+    // ===========================================================
+    // 3. LOCATIONS (hierarchical — insert parents first)
+    // ===========================================================
+    const locWorkshop = await ctx.db.insert("locations", {
+      name: "Workshop",
+      code: "WS",
+      type: "room",
+      description: "105 Hathaway Ln, Unit 103, Mooresville, NC — CCS Technologies HQ",
       status: "active",
-      usedInProducts: ["Oil_Heater_Controller", "Tire_Temperature"],
-      createdBy: "seed",
       updatedAt: now,
     });
 
-    const cProtoBoard = await ctx.db.insert("components", {
-      partNumber: "CCS-PCB-001",
-      name: "Double-Sided Prototype PCB 70x90mm",
-      description: "FR-4 double-sided prototype board with plated through holes",
-      category: "pcb",
-      subcategory: "protoboard",
-      manufacturer: "Generic",
-      unitOfMeasure: "each",
+    const locShelfA = await ctx.db.insert("locations", {
+      name: "Main Shelf A",
+      code: "WS-SA",
+      type: "shelf",
+      parentId: locWorkshop,
       status: "active",
-      createdBy: "seed",
       updatedAt: now,
     });
 
-    const cWire22 = await ctx.db.insert("components", {
-      partNumber: "CCS-WIR-001",
-      name: "22 AWG Silicone Hook-Up Wire (assorted)",
-      description: "22 AWG stranded silicone insulated wire, 6 color assortment",
-      category: "passive",
-      subcategory: "wire",
-      manufacturer: "Generic",
-      unitOfMeasure: "ft",
+    const locShelfB = await ctx.db.insert("locations", {
+      name: "Main Shelf B",
+      code: "WS-SB",
+      type: "shelf",
+      parentId: locWorkshop,
       status: "active",
-      createdBy: "seed",
       updatedAt: now,
     });
 
-    const allComponents = [
-      cESP32S3, cESP32C3, cESP32DevKit, cWaveshare7,
-      cMAX6675, cVL53L1X, cDS18B20, cMLX90614, cHX711,
-      cTP4056, cLipo500, cSSR40A,
-      cKTypeProbe, cJSTConn, cUSBC, cLoadCell50kg,
-      cProjectBox, cProtoBoard, cWire22,
-    ];
-    results.components = allComponents.length;
+    const locBin1 = await ctx.db.insert("locations", {
+      name: "Bin 1 — MCUs",
+      code: "WS-SA-B1",
+      type: "bin",
+      parentId: locShelfA,
+      description: "Microcontrollers and dev boards",
+      status: "active",
+      updatedAt: now,
+    });
+
+    const locBin2 = await ctx.db.insert("locations", {
+      name: "Bin 2 — Sensors",
+      code: "WS-SA-B2",
+      type: "bin",
+      parentId: locShelfA,
+      description: "Sensor modules and breakout boards",
+      status: "active",
+      updatedAt: now,
+    });
+
+    const locBin3 = await ctx.db.insert("locations", {
+      name: "Bin 3 — Passives",
+      code: "WS-SB-B3",
+      type: "bin",
+      parentId: locShelfB,
+      description: "Resistors, capacitors, inductors",
+      status: "active",
+      updatedAt: now,
+    });
+
+    const locDrawer1 = await ctx.db.insert("locations", {
+      name: "Drawer 1 — Connectors & PCBs",
+      code: "WS-SB-D1",
+      type: "drawer",
+      parentId: locShelfB,
+      description: "Connectors, custom PCBs, breakout boards",
+      status: "active",
+      updatedAt: now,
+    });
 
     // ===========================================================
-    // 4. COMPONENT-SUPPLIER LINKS (Amazon pricing)
+    // 4. INVENTORY
     // ===========================================================
-    const supplierLinks = [
-      { componentId: cESP32S3, supplierId: supAmazon, supplierPartNumber: "B0DJYM3T7Q", unitPrice: 11.49, minOrderQty: 2, url: "https://www.amazon.com/dp/B0DJYM3T7Q", inStock: true },
-      { componentId: cESP32C3, supplierId: supAmazon, supplierPartNumber: "B0B7JXCDP4", unitPrice: 7.99, minOrderQty: 1, url: "https://www.amazon.com/dp/B0B7JXCDP4", inStock: true },
-      { componentId: cTP4056, supplierId: supAmazon, supplierPartNumber: "B00LTQU2RK", unitPrice: 2.33, minOrderQty: 3, url: "https://www.amazon.com/dp/B00LTQU2RK", inStock: true },
-      { componentId: cVL53L1X, supplierId: supAmazon, supplierPartNumber: "B09MFKBFYM", unitPrice: 4.25, minOrderQty: 4, url: "https://www.amazon.com/dp/B09MFKBFYM", inStock: true },
-      { componentId: cLipo500, supplierId: supAmazon, supplierPartNumber: "B08214DJLJ", unitPrice: 8.99, minOrderQty: 1, url: "https://www.amazon.com/dp/B08214DJLJ", inStock: true },
-      { componentId: cMAX6675, supplierId: supAmazon, unitPrice: 4.99, minOrderQty: 1, inStock: true },
-      { componentId: cSSR40A, supplierId: supAmazon, unitPrice: 8.49, minOrderQty: 1, inStock: true },
-      { componentId: cDS18B20, supplierId: supAmazon, unitPrice: 2.99, minOrderQty: 5, inStock: true },
-      { componentId: cHX711, supplierId: supAmazon, unitPrice: 1.99, minOrderQty: 5, inStock: true },
-      { componentId: cKTypeProbe, supplierId: supAmazon, unitPrice: 6.99, minOrderQty: 1, inStock: true },
-      { componentId: cLoadCell50kg, supplierId: supAmazon, unitPrice: 3.49, minOrderQty: 4, inStock: true },
-      { componentId: cESP32DevKit, supplierId: supAmazon, unitPrice: 6.99, minOrderQty: 1, inStock: true },
-      { componentId: cWaveshare7, supplierId: supAmazon, unitPrice: 52.99, minOrderQty: 1, inStock: true },
-      { componentId: cMLX90614, supplierId: supAmazon, unitPrice: 12.99, minOrderQty: 1, inStock: true },
-    ];
+    const thirtyDaysAgo = now - 30 * DAY;
+    const sixtyDaysAgo = now - 60 * DAY;
 
-    for (const link of supplierLinks) {
-      await ctx.db.insert("componentSuppliers", {
-        componentId: link.componentId,
-        supplierId: link.supplierId,
-        supplierPartNumber: link.supplierPartNumber,
-        unitPrice: link.unitPrice,
-        currency: "USD",
-        minOrderQty: link.minOrderQty,
-        leadTimeDays: 2,
-        url: link.url,
-        inStock: link.inStock ?? true,
-        isPreferred: true,
-        lastPriceCheck: now,
-        updatedAt: now,
-      });
-    }
-    results.componentSuppliers = supplierLinks.length;
-
-    // ===========================================================
-    // 5. BOM ENTRIES — All 5 Products
-    // ===========================================================
-    const bomData = [
-      // --- Oil Heater Controller ---
-      { productName: "Oil_Heater_Controller", componentId: cESP32DevKit, quantityPerUnit: 1, referenceDesignator: "U1", placement: "through-hole", notes: "Controller board — PlatformIO firmware" },
-      { productName: "Oil_Heater_Controller", componentId: cWaveshare7, quantityPerUnit: 1, referenceDesignator: "DSP1", placement: "mechanical", notes: "Display board — Arduino + LVGL, UART to controller" },
-      { productName: "Oil_Heater_Controller", componentId: cMAX6675, quantityPerUnit: 1, referenceDesignator: "U2", placement: "through-hole", notes: "SPI thermocouple ADC" },
-      { productName: "Oil_Heater_Controller", componentId: cKTypeProbe, quantityPerUnit: 1, referenceDesignator: "TC1", placement: "mechanical", notes: "M6 thread into oil sump" },
-      { productName: "Oil_Heater_Controller", componentId: cSSR40A, quantityPerUnit: 1, referenceDesignator: "K1", placement: "mechanical", notes: "Heater element switching" },
-      { productName: "Oil_Heater_Controller", componentId: cProjectBox, quantityPerUnit: 1, referenceDesignator: "ENC1", placement: "mechanical" },
-
-      // --- RaceScale ---
-      { productName: "RaceScale", componentId: cESP32S3, quantityPerUnit: 1, referenceDesignator: "U1", placement: "through-hole", notes: "Main processor with display" },
-      { productName: "RaceScale", componentId: cHX711, quantityPerUnit: 4, referenceDesignator: "U2-U5", placement: "through-hole", notes: "One per scale pad" },
-      { productName: "RaceScale", componentId: cLoadCell50kg, quantityPerUnit: 16, referenceDesignator: "LC1-LC16", placement: "mechanical", notes: "4 per pad × 4 pads" },
-
-      // --- Ride Height Sensor ---
-      { productName: "Ride_Height_Sensor", componentId: cESP32C3, quantityPerUnit: 1, referenceDesignator: "U1", placement: "through-hole", notes: "BLE controller" },
-      { productName: "Ride_Height_Sensor", componentId: cVL53L1X, quantityPerUnit: 1, referenceDesignator: "U2", placement: "through-hole", notes: "ToF laser distance" },
-      { productName: "Ride_Height_Sensor", componentId: cTP4056, quantityPerUnit: 1, referenceDesignator: "U3", placement: "through-hole", notes: "Battery charging" },
-      { productName: "Ride_Height_Sensor", componentId: cLipo500, quantityPerUnit: 1, referenceDesignator: "BT1", placement: "mechanical" },
-      { productName: "Ride_Height_Sensor", componentId: cJSTConn, quantityPerUnit: 1, referenceDesignator: "J1", placement: "through-hole" },
-
-      // --- Tire Temperature (gun / IR) ---
-      { productName: "Tire_Temperature", componentId: cESP32S3, quantityPerUnit: 1, referenceDesignator: "U1", placement: "through-hole" },
-      { productName: "Tire_Temperature", componentId: cMLX90614, quantityPerUnit: 1, referenceDesignator: "U2", placement: "through-hole", notes: "Non-contact IR sensor" },
-      { productName: "Tire_Temperature", componentId: cDS18B20, quantityPerUnit: 3, referenceDesignator: "T1-T3", placement: "mechanical", notes: "Inner/middle/outer probes" },
-      { productName: "Tire_Temperature", componentId: cTP4056, quantityPerUnit: 1, referenceDesignator: "U3", placement: "through-hole" },
-      { productName: "Tire_Temperature", componentId: cProjectBox, quantityPerUnit: 1, referenceDesignator: "ENC1", placement: "mechanical" },
-
-      // --- Tire-Temp-Probe (wired probe set) ---
-      { productName: "Tire-Temp-Probe", componentId: cESP32C3, quantityPerUnit: 1, referenceDesignator: "U1", placement: "through-hole", notes: "BLE controller" },
-      { productName: "Tire-Temp-Probe", componentId: cDS18B20, quantityPerUnit: 3, referenceDesignator: "T1-T3", placement: "mechanical", notes: "Inner/middle/outer tire probes" },
-      { productName: "Tire-Temp-Probe", componentId: cTP4056, quantityPerUnit: 1, referenceDesignator: "U3", placement: "through-hole" },
-      { productName: "Tire-Temp-Probe", componentId: cLipo500, quantityPerUnit: 1, referenceDesignator: "BT1", placement: "mechanical" },
-      { productName: "Tire-Temp-Probe", componentId: cJSTConn, quantityPerUnit: 1, referenceDesignator: "J1", placement: "through-hole" },
-    ];
-
-    for (const bom of bomData) {
-      await ctx.db.insert("bomEntries", {
-        productName: bom.productName,
-        componentId: bom.componentId,
-        quantityPerUnit: bom.quantityPerUnit,
-        referenceDesignator: bom.referenceDesignator,
-        placement: bom.placement,
-        isOptional: false,
-        notes: bom.notes,
-        bomVersion: "1.0",
-        updatedAt: now,
-      });
-    }
-    results.bomEntries = bomData.length;
-
-    // ===========================================================
-    // 6. TEST INVENTORY (fake quantities — clean out later)
-    // ===========================================================
-    const inventoryData = [
-      // Dev boards on Shelf A
-      { componentId: cESP32S3, locationId: locShelfA, quantity: 4, reservedQty: 0, minimumStock: 2, costPerUnit: 11.49 },
-      { componentId: cESP32C3, locationId: locShelfA, quantity: 3, reservedQty: 0, minimumStock: 2, costPerUnit: 7.99 },
-      { componentId: cESP32DevKit, locationId: locShelfA, quantity: 5, reservedQty: 1, minimumStock: 2, costPerUnit: 6.99 },
-      { componentId: cWaveshare7, locationId: locShelfA, quantity: 2, reservedQty: 1, minimumStock: 1, costPerUnit: 52.99 },
-
-      // Sensors on Shelf B
-      { componentId: cMAX6675, locationId: locShelfB, quantity: 3, reservedQty: 0, minimumStock: 2, costPerUnit: 4.99 },
-      { componentId: cVL53L1X, locationId: locShelfB, quantity: 4, reservedQty: 0, minimumStock: 2, costPerUnit: 4.25 },
-      { componentId: cDS18B20, locationId: locShelfB, quantity: 8, reservedQty: 0, minimumStock: 6, costPerUnit: 2.99 },
-      { componentId: cMLX90614, locationId: locShelfB, quantity: 2, reservedQty: 0, minimumStock: 1, costPerUnit: 12.99 },
-      { componentId: cHX711, locationId: locShelfB, quantity: 6, reservedQty: 0, minimumStock: 4, costPerUnit: 1.99 },
-      { componentId: cKTypeProbe, locationId: locShelfB, quantity: 2, reservedQty: 0, minimumStock: 2, costPerUnit: 6.99 },
-      { componentId: cLoadCell50kg, locationId: locShelfB, quantity: 8, reservedQty: 0, minimumStock: 16, costPerUnit: 3.49 }, // LOW — need 16 per scale
-
-      // Connectors on Shelf C
-      { componentId: cJSTConn, locationId: locShelfC, quantity: 15, reservedQty: 0, minimumStock: 10, costPerUnit: 0.35 },
-      { componentId: cUSBC, locationId: locShelfC, quantity: 3, reservedQty: 0, minimumStock: 2, costPerUnit: 1.99 },
-      { componentId: cWire22, locationId: locShelfC, quantity: 100, reservedQty: 0, minimumStock: 50, costPerUnit: 0.10 },
-
-      // Power on Shelf D
-      { componentId: cTP4056, locationId: locShelfD, quantity: 3, reservedQty: 0, minimumStock: 3, costPerUnit: 2.33 },
-      { componentId: cLipo500, locationId: locShelfD, quantity: 2, reservedQty: 0, minimumStock: 2, costPerUnit: 8.99 },
-      { componentId: cSSR40A, locationId: locShelfD, quantity: 2, reservedQty: 0, minimumStock: 1, costPerUnit: 8.49 },
-
-      // Enclosures and PCBs
-      { componentId: cProjectBox, locationId: locEnclosures, quantity: 3, reservedQty: 0, minimumStock: 2, costPerUnit: 4.99 },
-      { componentId: cProtoBoard, locationId: locBinPCB, quantity: 5, reservedQty: 0, minimumStock: 3, costPerUnit: 1.50 },
-    ];
-
-    function computeStatus(qty: number, min?: number): string {
+    // helper to derive status
+    function stockStatus(qty: number, min: number): string {
       if (qty <= 0) return "out_of_stock";
-      if (min && qty <= min) return "low_stock";
+      if (qty <= min) return "low_stock";
       return "in_stock";
     }
 
-    for (const inv of inventoryData) {
-      const available = inv.quantity - inv.reservedQty;
-      await ctx.db.insert("inventory", {
-        componentId: inv.componentId,
-        locationId: inv.locationId,
-        quantity: inv.quantity,
-        reservedQty: inv.reservedQty,
-        availableQty: available,
-        minimumStock: inv.minimumStock,
-        costPerUnit: inv.costPerUnit,
-        status: computeStatus(inv.quantity, inv.minimumStock),
-        updatedAt: now,
-      });
-    }
-    results.inventory = inventoryData.length;
+    // ESP32-C3 SuperMini — Bin 1, 33 qty, 5 reserved
+    await ctx.db.insert("inventory", {
+      componentId: cESP32C3,
+      locationId: locBin1,
+      quantity: 33,
+      reservedQty: 5,
+      availableQty: 28,
+      minimumStock: 10,
+      costPerUnit: 3.50,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(33, 10),
+      updatedAt: now,
+    });
+
+    // ESP32-S3 DevKitC — Bin 1, 8 qty, 0 reserved
+    await ctx.db.insert("inventory", {
+      componentId: cESP32S3,
+      locationId: locBin1,
+      quantity: 8,
+      reservedQty: 0,
+      availableQty: 8,
+      minimumStock: 5,
+      costPerUnit: 11.49,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(8, 5),
+      updatedAt: now,
+    });
+
+    // MAX6675 — Bin 2, 12 qty, 3 reserved
+    await ctx.db.insert("inventory", {
+      componentId: cMAX6675,
+      locationId: locBin2,
+      quantity: 12,
+      reservedQty: 3,
+      availableQty: 9,
+      minimumStock: 5,
+      costPerUnit: 4.99,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(12, 5),
+      updatedAt: now,
+    });
+
+    // HX711 — Bin 2, 4 qty, 0 reserved — LOW STOCK (min 5)
+    await ctx.db.insert("inventory", {
+      componentId: cHX711,
+      locationId: locBin2,
+      quantity: 4,
+      reservedQty: 0,
+      availableQty: 4,
+      minimumStock: 5,
+      costPerUnit: 2.80,
+      lastCountedAt: thirtyDaysAgo,
+      status: "low_stock",
+      updatedAt: now,
+    });
+
+    // VL53L0X — Bin 2, 2 qty, 0 reserved — LOW STOCK, last counted 60 days ago
+    await ctx.db.insert("inventory", {
+      componentId: cVL53L0X,
+      locationId: locBin2,
+      quantity: 2,
+      reservedQty: 0,
+      availableQty: 2,
+      minimumStock: 5,
+      costPerUnit: 2.40,
+      lastCountedAt: sixtyDaysAgo,
+      status: "low_stock",
+      updatedAt: now,
+    });
+
+    // 0.1uF Caps — Bin 3, 247 qty
+    await ctx.db.insert("inventory", {
+      componentId: cCap100nF,
+      locationId: locBin3,
+      quantity: 247,
+      reservedQty: 0,
+      availableQty: 247,
+      minimumStock: 100,
+      costPerUnit: 0.02,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(247, 100),
+      updatedAt: now,
+    });
+
+    // 10K Resistors — Bin 3, 189 qty
+    await ctx.db.insert("inventory", {
+      componentId: cRes10K,
+      locationId: locBin3,
+      quantity: 189,
+      reservedQty: 0,
+      availableQty: 189,
+      minimumStock: 100,
+      costPerUnit: 0.01,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(189, 100),
+      updatedAt: now,
+    });
+
+    // USB-C Connectors — Drawer 1, 15 qty
+    await ctx.db.insert("inventory", {
+      componentId: cUSBC,
+      locationId: locDrawer1,
+      quantity: 15,
+      reservedQty: 0,
+      availableQty: 15,
+      minimumStock: 10,
+      costPerUnit: 1.20,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(15, 10),
+      updatedAt: now,
+    });
+
+    // Oil Heater PCB Rev C — Drawer 1, 3 qty — LOW STOCK (min 5)
+    await ctx.db.insert("inventory", {
+      componentId: cPCBOilHeater,
+      locationId: locDrawer1,
+      quantity: 3,
+      reservedQty: 0,
+      availableQty: 3,
+      minimumStock: 5,
+      costPerUnit: 12.60,
+      lastCountedAt: thirtyDaysAgo,
+      status: "low_stock",
+      updatedAt: now,
+    });
+
+    // RaceScale PCB Rev B — Drawer 1, 7 qty
+    await ctx.db.insert("inventory", {
+      componentId: cPCBRaceScale,
+      locationId: locDrawer1,
+      quantity: 7,
+      reservedQty: 0,
+      availableQty: 7,
+      minimumStock: 5,
+      costPerUnit: 12.00,
+      lastCountedAt: thirtyDaysAgo,
+      status: stockStatus(7, 5),
+      updatedAt: now,
+    });
 
     // ===========================================================
-    // 7. SAMPLE PURCHASE ORDER
+    // 5. PURCHASE ORDERS
     // ===========================================================
-    const poId = await ctx.db.insert("purchaseOrders", {
+    const orderDate = now - 5 * DAY;
+
+    // PO-2026-001 — DigiKey, shipped
+    const po1 = await ctx.db.insert("purchaseOrders", {
       poNumber: "PO-2026-001",
-      supplierId: supAmazon,
+      supplierId: supDigiKey,
       status: "shipped",
-      orderDate: now - 3 * 24 * 60 * 60 * 1000, // 3 days ago
-      expectedDelivery: now + 1 * 24 * 60 * 60 * 1000, // tomorrow
-      trackingNumber: "TBA612345678000",
-      subtotal: 55.92,
-      totalCost: 55.92,
-      notes: "Restock load cells for RaceScale production run",
-      createdBy: "Steve",
+      orderDate,
+      expectedDelivery: now + 2 * DAY,
+      trackingNumber: "1Z999AA10123456784",
+      subtotal: 127.50,
+      totalCost: 127.50,
+      notes: "Restock sensors and MCUs — low stock triggered by agent",
+      createdBy: "agent",
       updatedAt: now,
     });
 
     await ctx.db.insert("purchaseOrderLines", {
-      purchaseOrderId: poId,
-      componentId: cLoadCell50kg,
-      quantityOrdered: 16,
+      purchaseOrderId: po1,
+      componentId: cESP32C3,
+      quantityOrdered: 25,
       quantityReceived: 0,
-      unitPrice: 3.49,
-      lineTotal: 55.84,
+      unitPrice: 3.50,
+      lineTotal: 87.50,
       status: "pending",
-      notes: "Full set for one 4-corner scale system",
       updatedAt: now,
     });
 
-    results.purchaseOrders = 1;
-
-    // ===========================================================
-    // 8. SAMPLE BUILD ORDER
-    // ===========================================================
-    await ctx.db.insert("buildOrders", {
-      buildNumber: "BUILD-OI-2026-001",
-      productName: "Oil_Heater_Controller",
-      quantity: 2,
-      status: "planned",
-      priority: "high",
-      bomVersion: "1.0",
-      assignedTo: "Steve",
-      notes: "First production pair — one for testing, one for customer demo",
-      createdBy: "Steve",
+    await ctx.db.insert("purchaseOrderLines", {
+      purchaseOrderId: po1,
+      componentId: cHX711,
+      quantityOrdered: 10,
+      quantityReceived: 0,
+      unitPrice: 2.80,
+      lineTotal: 28.00,
+      status: "pending",
       updatedAt: now,
     });
 
-    await ctx.db.insert("buildOrders", {
-      buildNumber: "BUILD-RA-2026-001",
-      productName: "RaceScale",
-      quantity: 1,
-      status: "planned",
-      priority: "normal",
-      bomVersion: "1.0",
-      notes: "Prototype build — waiting on load cell delivery (PO-2026-001)",
-      createdBy: "Steve",
+    await ctx.db.insert("purchaseOrderLines", {
+      purchaseOrderId: po1,
+      componentId: cVL53L0X,
+      quantityOrdered: 5,
+      quantityReceived: 0,
+      unitPrice: 2.40,
+      lineTotal: 12.00,
+      status: "pending",
       updatedAt: now,
     });
 
-    results.buildOrders = 2;
+    // PO-2026-002 — JLCPCB, confirmed
+    const po2 = await ctx.db.insert("purchaseOrders", {
+      poNumber: "PO-2026-002",
+      supplierId: supJLCPCB,
+      status: "confirmed",
+      orderDate,
+      expectedDelivery: now + 10 * DAY,
+      subtotal: 186.00,
+      totalCost: 186.00,
+      notes: "PCB restock for upcoming Oil Heater and RaceScale builds",
+      createdBy: "agent",
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("purchaseOrderLines", {
+      purchaseOrderId: po2,
+      componentId: cPCBOilHeater,
+      quantityOrdered: 10,
+      quantityReceived: 0,
+      unitPrice: 12.60,
+      lineTotal: 126.00,
+      status: "pending",
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("purchaseOrderLines", {
+      purchaseOrderId: po2,
+      componentId: cPCBRaceScale,
+      quantityOrdered: 5,
+      quantityReceived: 0,
+      unitPrice: 12.00,
+      lineTotal: 60.00,
+      status: "pending",
+      updatedAt: now,
+    });
 
     // ===========================================================
-    // 9. SAMPLE ALERTS
+    // 6. ALERTS — staggered timestamps
     // ===========================================================
     await ctx.db.insert("alerts", {
       type: "low_stock",
       severity: "critical",
-      title: "Load cells critically low for RaceScale",
-      message: "Only 8 load cells in stock. Need 16 per RaceScale unit. PO-2026-001 is in transit with 16 more.",
-      componentId: cLoadCell50kg,
+      title: "Low Stock: HX711 Load Cell Amplifier",
+      message: "Only 4 units remaining (available: 4). Minimum threshold is 5. DigiKey has stock at $2.80/ea with 3-day lead. PO-2026-001 includes 10 units arriving in 2 days.",
+      componentId: cHX711,
       status: "active",
       agentGenerated: true,
-      agentContext: JSON.stringify({ trigger: "inventory_check", threshold: 16, current: 8 }),
-      updatedAt: now,
+      agentContext: JSON.stringify({ trigger: "stock_monitor", threshold: 5, current: 4 }),
+      updatedAt: now - 1 * 60 * 60 * 1000, // 1 hour ago
+    });
+
+    await ctx.db.insert("alerts", {
+      type: "low_stock",
+      severity: "critical",
+      title: "Low Stock: VL53L0X ToF Sensor",
+      message: "Only 2 units remaining (available: 2). Minimum threshold is 5. Needed for Ride Height Sensor builds. PO-2026-001 includes 5 units.",
+      componentId: cVL53L0X,
+      status: "active",
+      agentGenerated: true,
+      agentContext: JSON.stringify({ trigger: "stock_monitor", threshold: 5, current: 2 }),
+      updatedAt: now - 3 * 60 * 60 * 1000, // 3 hours ago
     });
 
     await ctx.db.insert("alerts", {
       type: "low_stock",
       severity: "warning",
-      title: "TP4056 charger modules at minimum stock",
-      message: "3 units in stock = minimum threshold. Used in 3 products. Consider reordering.",
-      componentId: cTP4056,
+      title: "Low Stock: Oil Heater Controller PCB Rev C",
+      message: "Only 3 units remaining (available: 3). Minimum threshold is 5. PO-2026-002 from JLCPCB includes 10 units, arriving in ~10 days.",
+      componentId: cPCBOilHeater,
       status: "active",
       agentGenerated: true,
-      updatedAt: now,
-    });
-
-    await ctx.db.insert("alerts", {
-      type: "low_stock",
-      severity: "warning",
-      title: "LiPo batteries at minimum stock",
-      message: "2 units in stock = minimum threshold. Used in Ride_Height_Sensor and Tire-Temp-Probe.",
-      componentId: cLipo500,
-      status: "active",
-      agentGenerated: true,
-      updatedAt: now,
+      agentContext: JSON.stringify({ trigger: "stock_monitor", threshold: 5, current: 3 }),
+      updatedAt: now - 1 * DAY, // 1 day ago
     });
 
     await ctx.db.insert("alerts", {
       type: "po_overdue",
-      severity: "info",
-      title: "PO-2026-001 arriving tomorrow",
-      message: "Amazon order with 16x load cells expected delivery tomorrow. Track: TBA612345678000",
-      purchaseOrderId: poId,
+      severity: "warning",
+      title: "PO-2026-001 Arriving Soon",
+      message: "DigiKey shipment with 40 items expected in 2 days. Tracking: 1Z999AA10123456784. Prepare receiving area in Bin 1 (MCUs) and Bin 2 (Sensors).",
+      purchaseOrderId: po1,
       status: "active",
       agentGenerated: true,
-      updatedAt: now,
+      updatedAt: now - 2 * DAY, // 2 days ago
     });
 
-    results.alerts = 4;
+    await ctx.db.insert("alerts", {
+      type: "count_needed",
+      severity: "info",
+      title: "Physical Count Needed: VL53L0X ToF Sensor",
+      message: "Last counted 60 days ago (Bin 2 — Sensors). System shows 2 units. Please verify. Discrepancy risk is high given age of count.",
+      componentId: cVL53L0X,
+      locationId: locBin2,
+      status: "active",
+      agentGenerated: true,
+      updatedAt: now - 3 * DAY, // 3 days ago
+    });
 
     // ===========================================================
-    // 10. SAMPLE TASKS
+    // 7. TASKS — staggered priorities and due dates
     // ===========================================================
     await ctx.db.insert("tasks", {
-      title: "Receive PO-2026-001 — Load cells from Amazon",
-      description: "Package arriving tomorrow. Open, count 16x 50kg load cells, verify condition, update inventory, close PO.",
+      title: "Receive DigiKey Shipment PO-2026-001",
+      description: "Package arriving in 2 days. Contains 25x ESP32-C3 SuperMini, 10x HX711 Load Cell Amp, 5x VL53L0X ToF Sensor. Verify quantities against packing slip. Store MCUs in Bin 1, sensors in Bin 2. Update inventory and close PO.",
       type: "receive_shipment",
-      priority: "high",
+      priority: "urgent",
       status: "pending",
-      dueAt: now + 1 * 24 * 60 * 60 * 1000,
-      slaHours: 24,
+      dueAt: now + 2 * DAY,
+      slaHours: 48,
       escalationLevel: 0,
-      purchaseOrderId: poId,
+      purchaseOrderId: po1,
       agentGenerated: true,
       agentContext: JSON.stringify({ trigger: "po_shipped", poNumber: "PO-2026-001" }),
       updatedAt: now,
     });
 
     await ctx.db.insert("tasks", {
-      title: "Inventory count — Shelf B sensors",
-      description: "Perform physical count of all sensor modules on Shelf B. Compare against system quantities. Report discrepancies.",
+      title: "Physical Count: VL53L0X ToF Sensor",
+      description: "System shows 2 units in Bin 2 — Sensors. Last counted 60 days ago. Count actual units and report back. If discrepancy found, check if any were used in prototype builds or misplaced.",
       type: "count_inventory",
-      priority: "normal",
+      priority: "high",
       status: "pending",
-      assignedTo: "Nick",
-      dueAt: now + 3 * 24 * 60 * 60 * 1000,
-      slaHours: 72,
+      dueAt: now + 1 * DAY,
+      slaHours: 24,
       escalationLevel: 0,
-      locationId: locShelfB,
+      componentId: cVL53L0X,
+      locationId: locBin2,
       agentGenerated: true,
       updatedAt: now,
     });
 
     await ctx.db.insert("tasks", {
-      title: "Order more TP4056 charger modules",
-      description: "At minimum stock (3 units). Used in 3 products. Recommend ordering 10 from Amazon. Draft PO when ready.",
+      title: "Review JLCPCB PCB Order PO-2026-002",
+      description: "Confirm order details for 10x Oil Heater PCB Rev C and 5x RaceScale PCB Rev B. Expected delivery in 10 days. Verify Gerber files match latest revision. Check DHL tracking once shipped.",
       type: "general",
       priority: "normal",
       status: "pending",
-      dueAt: now + 5 * 24 * 60 * 60 * 1000,
+      dueAt: now + 5 * DAY,
       slaHours: 120,
       escalationLevel: 0,
-      componentId: cTP4056,
+      purchaseOrderId: po2,
       agentGenerated: true,
       updatedAt: now,
     });
 
     await ctx.db.insert("tasks", {
-      title: "Prep Oil Heater build — verify materials",
-      description: "BUILD-OI-2026-001: Building 2 Oil Heater Controllers. Verify all BOM components are in stock and reserve materials. Check: ESP32 DevKit (need 2), Waveshare display (need 2), MAX6675 (need 2), K-type probe (need 2), SSR-40DA (need 2), project box (need 2).",
-      type: "quality_check",
-      priority: "high",
+      title: "Update Oil Heater BOM to Rev D",
+      description: "Engineering made component changes. Update the BOM spreadsheet in Google Drive at Products/Oil_Heater_Controller/BOM/. Add MAX31855 as alternate for MAX6675. Update version field to Rev D and notify team.",
+      type: "review_bom",
+      priority: "normal",
       status: "pending",
-      assignedTo: "Steve",
-      dueAt: now + 2 * 24 * 60 * 60 * 1000,
-      slaHours: 48,
+      dueAt: now + 7 * DAY,
+      slaHours: 168,
       escalationLevel: 0,
       agentGenerated: true,
-      agentContext: JSON.stringify({ trigger: "build_order_planned", buildNumber: "BUILD-OI-2026-001" }),
       updatedAt: now,
     });
 
-    results.tasks = 4;
+    await ctx.db.insert("tasks", {
+      title: "Restock Passive Components",
+      description: "0.1uF caps (247) and 10K resistors (189) are well stocked but haven't been counted in 45 days. Do a quick count of Bin 3 — Passives. No urgent action needed — purely a housekeeping count.",
+      type: "count_inventory",
+      priority: "low",
+      status: "pending",
+      dueAt: now + 14 * DAY,
+      slaHours: 336,
+      escalationLevel: 0,
+      locationId: locBin3,
+      agentGenerated: true,
+      updatedAt: now,
+    });
+
+    // ===========================================================
+    // 8. BOM ENTRIES — Oil_Heater_Controller
+    // ===========================================================
+    const bomEntries = [
+      { componentId: cESP32C3, quantityPerUnit: 1, referenceDesignator: "U1" },
+      { componentId: cMAX6675, quantityPerUnit: 1, referenceDesignator: "U2" },
+      { componentId: cCap100nF, quantityPerUnit: 6, referenceDesignator: "C1-C6" },
+      { componentId: cRes10K, quantityPerUnit: 4, referenceDesignator: "R1-R4" },
+      { componentId: cUSBC, quantityPerUnit: 1, referenceDesignator: "J1" },
+      { componentId: cPCBOilHeater, quantityPerUnit: 1, referenceDesignator: undefined },
+    ];
+
+    for (const entry of bomEntries) {
+      await ctx.db.insert("bomEntries", {
+        productName: "Oil_Heater_Controller",
+        componentId: entry.componentId,
+        quantityPerUnit: entry.quantityPerUnit,
+        referenceDesignator: entry.referenceDesignator,
+        isOptional: false,
+        bomVersion: "1.0",
+        updatedAt: now,
+      });
+    }
 
     return {
-      message: "🏁 CCS Operations database seeded successfully!",
-      ...results,
+      message: "🏁 CCS Operations seeded successfully!",
+      suppliers: 3,
+      components: 10,
+      locations: 7,
+      inventory: 10,
+      purchaseOrders: 2,
+      purchaseOrderLines: 5,
+      alerts: 5,
+      tasks: 5,
+      bomEntries: 6,
     };
   },
 });
 
 // ============================================================
-// CLEAR — Wipe all data (use before re-seeding)
+// CLEAR — Wipe all operational data (run before re-seeding)
 // Run with: npx convex run seed:clear
 // ============================================================
 export const clear = mutation({
   handler: async (ctx) => {
     const tables = [
+      "receiptPhotos",
       "inventoryTransactions",
       "purchaseOrderLines",
       "purchaseOrders",
@@ -846,10 +731,14 @@ export const clear = mutation({
       "components",
       "suppliers",
       "locations",
+      "bomChangeLogs",
+      "bomSnapshots",
+      "briefings",
+      "driveFiles",
+      "driveSyncLog",
     ] as const;
 
     const counts: Record<string, number> = {};
-
     for (const table of tables) {
       const rows = await ctx.db.query(table as any).collect();
       for (const row of rows) {
@@ -858,6 +747,6 @@ export const clear = mutation({
       counts[table] = rows.length;
     }
 
-    return { message: "🧹 All operational data cleared.", deleted: counts };
+    return { message: "🧹 All data cleared.", deleted: counts };
   },
 });
