@@ -126,6 +126,44 @@ export const getById = query({
   },
 });
 
+// Mobile app alias: api.inventory.purchaseOrders.get
+export const get = query({
+  args: { id: v.id("purchaseOrders") },
+  handler: async (ctx, args) => {
+    const po = await ctx.db.get(args.id);
+    if (!po) return null;
+    const supplier = await ctx.db.get(po.supplierId);
+    return {
+      ...po,
+      supplierName: supplier?.name ?? "Unknown",
+      supplierCode: supplier?.code ?? "Unknown",
+    };
+  },
+});
+
+// Mobile app: api.inventory.purchaseOrders.getLines
+export const getLines = query({
+  args: { purchaseOrderId: v.id("purchaseOrders") },
+  handler: async (ctx, args) => {
+    const lines = await ctx.db
+      .query("purchaseOrderLines")
+      .withIndex("by_purchaseOrder", (q) => q.eq("purchaseOrderId", args.purchaseOrderId))
+      .collect();
+
+    return await Promise.all(
+      lines.map(async (line) => {
+        const component = await ctx.db.get(line.componentId);
+        return {
+          ...line,
+          componentName: component?.name ?? "Unknown",
+          componentPartNumber: component?.partNumber ?? "Unknown",
+          quantity: line.quantityOrdered,
+        };
+      })
+    );
+  },
+});
+
 export const getByPoNumber = query({
   args: { poNumber: v.string() },
   handler: async (ctx, args) => {
@@ -299,12 +337,14 @@ export const updateStatus = mutation({
 
 export const receiveLine = mutation({
   args: {
-    lineId: v.id("purchaseOrderLines"),
+    purchaseOrderLineId: v.id("purchaseOrderLines"),
     quantityReceived: v.number(),
+    notes: v.optional(v.string()),
+    flagDiscrepancy: v.optional(v.boolean()),
     receivedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const line = await ctx.db.get(args.lineId);
+    const line = await ctx.db.get(args.purchaseOrderLineId);
     if (!line) throw new Error("PO line not found");
 
     const newReceived = line.quantityReceived + args.quantityReceived;
@@ -316,7 +356,7 @@ export const receiveLine = mutation({
 
     const lineStatus = newReceived >= line.quantityOrdered ? "received" : "partial";
 
-    await ctx.db.patch(args.lineId, {
+    await ctx.db.patch(args.purchaseOrderLineId, {
       quantityReceived: newReceived,
       status: lineStatus,
       updatedAt: Date.now(),
@@ -330,10 +370,10 @@ export const receiveLine = mutation({
         .collect();
 
       const allReceived = allLines.every(
-        (l) => l._id === args.lineId ? newReceived >= l.quantityOrdered : l.quantityReceived >= l.quantityOrdered
+        (l) => l._id === args.purchaseOrderLineId ? newReceived >= l.quantityOrdered : l.quantityReceived >= l.quantityOrdered
       );
       const anyReceived = allLines.some(
-        (l) => l._id === args.lineId ? newReceived > 0 : l.quantityReceived > 0
+        (l) => l._id === args.purchaseOrderLineId ? newReceived > 0 : l.quantityReceived > 0
       );
 
       if (allReceived && po.status !== "received") {
@@ -343,7 +383,7 @@ export const receiveLine = mutation({
       }
     }
 
-    return { lineId: args.lineId, quantityReceived: newReceived, status: lineStatus };
+    return { lineId: args.purchaseOrderLineId, quantityReceived: newReceived, status: lineStatus };
   },
 });
 

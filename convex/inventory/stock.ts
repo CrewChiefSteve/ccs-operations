@@ -38,6 +38,53 @@ export const list = query({
   },
 });
 
+// Mobile app: api.inventory.stock.getByComponent
+// Returns all stock records for a component, with location name joined
+export const getByComponent = query({
+  args: { componentId: v.id("components") },
+  handler: async (ctx, args) => {
+    const records = await ctx.db
+      .query("inventory")
+      .withIndex("by_component", (q) => q.eq("componentId", args.componentId))
+      .collect();
+
+    return await Promise.all(
+      records.map(async (record) => {
+        const location = await ctx.db.get(record.locationId);
+        return {
+          ...record,
+          locationName: location?.name ?? "Unknown",
+          availableQuantity: record.availableQty,
+        };
+      })
+    );
+  },
+});
+
+// Mobile app: api.inventory.stock.getByLocation
+// Returns all stock records at a location, with component name and partNumber joined
+export const getByLocation = query({
+  args: { locationId: v.id("locations") },
+  handler: async (ctx, args) => {
+    const records = await ctx.db
+      .query("inventory")
+      .withIndex("by_location", (q) => q.eq("locationId", args.locationId))
+      .collect();
+
+    return await Promise.all(
+      records.map(async (record) => {
+        const component = await ctx.db.get(record.componentId);
+        return {
+          ...record,
+          componentName: component?.name ?? "Unknown",
+          partNumber: component?.partNumber ?? "Unknown",
+          availableQuantity: record.availableQty,
+        };
+      })
+    );
+  },
+});
+
 export const getByComponentLocation = query({
   args: {
     componentId: v.id("components"),
@@ -355,30 +402,35 @@ export const releaseReservation = mutation({
 
 export const recordCount = mutation({
   args: {
-    id: v.id("inventory"),
-    countedQty: v.number(),
-    countedBy: v.string(),
+    componentId: v.id("components"),
+    locationId: v.id("locations"),
+    actualQuantity: v.number(),
+    systemQuantity: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const record = await ctx.db.get(args.id);
-    if (!record) throw new Error("Inventory record not found");
+    const record = await ctx.db
+      .query("inventory")
+      .withIndex("by_component_location", (q) =>
+        q.eq("componentId", args.componentId).eq("locationId", args.locationId)
+      )
+      .unique();
+    if (!record) throw new Error("Inventory record not found for this component/location");
 
-    const status = computeStatus(args.countedQty, record.minimumStock ?? undefined, record.maximumStock ?? undefined);
-    const discrepancy = args.countedQty - record.quantity;
+    const status = computeStatus(args.actualQuantity, record.minimumStock ?? undefined, record.maximumStock ?? undefined);
+    const discrepancy = args.actualQuantity - record.quantity;
 
-    await ctx.db.patch(args.id, {
-      quantity: args.countedQty,
-      availableQty: args.countedQty - record.reservedQty,
+    await ctx.db.patch(record._id, {
+      quantity: args.actualQuantity,
+      availableQty: args.actualQuantity - record.reservedQty,
       status,
       lastCountedAt: Date.now(),
-      lastCountedBy: args.countedBy,
       updatedAt: Date.now(),
     });
 
     return {
-      id: args.id,
+      id: record._id,
       previousQty: record.quantity,
-      countedQty: args.countedQty,
+      countedQty: args.actualQuantity,
       discrepancy,
       status,
     };
