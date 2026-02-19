@@ -8,4 +8,4 @@ dist/
 .DS_Store
 .turbo
 .expo/
-convex/_generated/
+# convex/_generated/ — intentionally tracked so EAS cloud builds have typed API
