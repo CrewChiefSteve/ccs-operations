@@ -394,7 +394,7 @@ export const _failBriefing = internalMutation({
 // ============================================================
 
 export const generate = internalAction({
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ success: boolean; briefingId?: string; error?: string }> => {
     const today = new Date().toISOString().split("T")[0];
     const dayOfWeek = new Date().toLocaleDateString("en-US", {
       weekday: "long",

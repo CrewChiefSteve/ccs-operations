@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "CCS Operations",
+    "slug": "ccs-operations-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "ccs-ops",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.crewchiefsteve.operations",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to scan barcodes and capture shipment photos",
+        "NSPhotoLibraryUsageDescription": "Photo library access is used to attach shipment photos to PO receipts"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.crewchiefsteve.operations",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow CCS Operations to scan barcodes and capture shipment photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow CCS Operations to attach shipment photos to PO receipts."
+        }
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ed109c39-aba5-4cf9-a4bf-cd1edb2a043f"
+      },
+      "clerkPublishableKey": "pk_test_Z2l2aW5nLWFkZGVyLTIxLmNsZXJrLmFjY291bnRzLmRldiQ",
+      "convexUrl": "https://rugged-heron-983.convex.cloud",
+      "router": {
+        "origin": false
+      }
+    },
+    "owner": "crewchiefsteve"
+  }
+}

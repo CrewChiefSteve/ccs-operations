@@ -13,7 +13,10 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@ccs/shared": ["./packages/shared/src"]
+      "@ccs/shared": [
+        "./packages/shared/src"
+      ]
     }
-  }
+  },
+  "extends": "expo/tsconfig.base"
 }

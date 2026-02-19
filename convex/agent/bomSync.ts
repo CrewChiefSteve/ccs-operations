@@ -106,7 +106,7 @@ export const getLatestSnapshot = query({
   handler: async (ctx, args) => {
     const snapshots = await ctx.db
       .query("bomSnapshots")
-      .withIndex("by_product", (q) => q.eq("productName", args.product))
+      .withIndex("by_product", (q) => q.eq("product", args.product))
       .order("desc")
       .take(1);
     return snapshots[0] ?? null;
@@ -188,7 +188,7 @@ export const _getLatestSnapshot = internalQuery({
   handler: async (ctx, args) => {
     const snapshots = await ctx.db
       .query("bomSnapshots")
-      .withIndex("by_product", (q) => q.eq("productName", args.product))
+      .withIndex("by_product", (q) => q.eq("product", args.product))
       .order("desc")
       .take(1);
     return snapshots[0] ?? null;
@@ -630,7 +630,7 @@ export const processBomFileChange = internalAction({
       );
       await ctx.runMutation(
         internal.agent.bomSync._updateChangeLogStatus,
-        { id: logId, taskId }
+        { id: logId, status: "processing", taskId }
       );
       results.tasksCreated++;
     }
@@ -676,7 +676,7 @@ export const processBomFileChange = internalAction({
       );
       await ctx.runMutation(
         internal.agent.bomSync._updateChangeLogStatus,
-        { id: logId, taskId }
+        { id: logId, status: "processing", taskId }
       );
       results.tasksCreated++;
     }
@@ -899,7 +899,7 @@ async function processQuantityChange(
 // This action is called by the cron to check for BOM changes
 // since the last scan. It triggers processBomFileChange for each.
 export const scanForBomChanges = internalAction({
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ scanned: number; processed: number }> => {
     // Look for BOM files modified in the last 20 minutes (slightly overlapping
     // with 15-minute cron to avoid gaps)
     const since = Date.now() - 20 * 60 * 1000;

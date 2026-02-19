@@ -124,7 +124,7 @@ export const getDetail = query({
           componentId: entry.componentId,
           componentName: component.name,
           partNumber: component.partNumber,
-          quantityPerUnit: entry.quantity,
+          quantityPerUnit: entry.quantityPerUnit,
           totalNeeded,
           currentStock: totalStock,
           availableStock: totalAvailable,
@@ -901,8 +901,6 @@ export const completeBuild = mutation({
 
           const toRelease = Math.min(excessQty, currentReserved);
           const newReserved = currentReserved - toRelease;
-          const newAvailable = record.quantity - toConsume - newReserved;
-
           await ctx.db.patch(record._id, {
             reservedQty: newReserved,
             availableQty: Math.max(0, record.quantity - newReserved),
