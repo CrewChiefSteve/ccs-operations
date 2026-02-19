@@ -110,7 +110,7 @@ export function Sidebar() {
               {section.items.map((item) => {
                 const isActive =
                   pathname === item.href ||
-                  pathname.startsWith(item.href + "/");
+                  (pathname?.startsWith(item.href + "/") ?? false);
                 return (
                   <Link
                     key={item.href}
