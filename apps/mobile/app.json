@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "ccs-ops",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -19,7 +19,9 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to scan barcodes and capture shipment photos",
         "NSPhotoLibraryUsageDescription": "Photo library access is used to attach shipment photos to PO receipts",
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -34,7 +36,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE"
-      ]
+      ],
+      "versionCode": 2
     },
     "plugins": [
       "expo-router",
