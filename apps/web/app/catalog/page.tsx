@@ -17,8 +17,9 @@ import { Plus, Search, Cpu, ExternalLink } from "lucide-react";
 import { COMPONENT_CATEGORIES, CATEGORY_LABELS } from "@/lib/constants";
 import { formatDate, cn } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Component = {
-  _id: string;
+  _id: any;
   partNumber: string;
   name: string;
   category: string;
@@ -26,8 +27,8 @@ type Component = {
   manufacturer?: string;
   manufacturerPN?: string;
   description?: string;
-  unitOfMeasure: string;
-  isActive: boolean;
+  unitOfMeasure?: string;
+  status: string;
   _creationTime: number;
   updatedAt: number;
 };
@@ -115,7 +116,7 @@ export default function CatalogPage() {
       header: "UoM",
       className: "w-20",
       render: (row: Component) => (
-        <span className="text-text-secondary">{row.unitOfMeasure}</span>
+        <span className="text-text-secondary">{row.unitOfMeasure ?? "each"}</span>
       ),
     },
     {
@@ -125,12 +126,12 @@ export default function CatalogPage() {
       render: (row: Component) => (
         <Badge
           className={
-            row.isActive
+            row.status === "active"
               ? "bg-emerald-500/15 text-emerald-400"
               : "bg-surface-3 text-text-tertiary"
           }
         >
-          {row.isActive ? "Active" : "Inactive"}
+          {row.status === "active" ? "Active" : row.status === "deprecated" ? "Deprecated" : row.status}
         </Badge>
       ),
     },

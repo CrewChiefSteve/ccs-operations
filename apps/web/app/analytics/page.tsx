@@ -327,7 +327,8 @@ export default function AnalyticsPage() {
                 </tr>
               </thead>
               <tbody>
-                {supplierPerf.map((s: { supplierId: string; supplierName: string; supplierCode: string; rating: number | null; totalOrders: number; completedOrders: number; totalSpend: number; onTimePercent: number | null; avgLeadTimeDays: number | null }) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {supplierPerf.map((s: any) => (
                   <tr
                     key={s.supplierId}
                     className="border-b border-surface-4/50"

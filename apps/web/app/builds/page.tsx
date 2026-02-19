@@ -40,8 +40,9 @@ import { formatDate, formatCurrency, generateBuildNumber } from "@/lib/utils";
 // TYPES
 // ============================================================
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BuildOrder = {
-  _id: string;
+  _id: any;
   buildNumber: string;
   productName: string;
   product?: string;

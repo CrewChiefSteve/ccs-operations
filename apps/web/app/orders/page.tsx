@@ -16,10 +16,11 @@ import { Plus, Search, ClipboardList, ChevronRight } from "lucide-react";
 import { PO_STATUS_CONFIG } from "@/lib/constants";
 import { formatDate, formatCurrency, generatePONumber } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PurchaseOrder = {
-  _id: string;
+  _id: any;
   poNumber: string;
-  supplierId: string;
+  supplierId: any;
   supplierName: string;
   status: string;
   orderDate?: number;
@@ -31,8 +32,8 @@ type PurchaseOrder = {
   tax?: number;
   total: number;
   notes?: string;
-  createdBy: string;
-  _creationTime: number;
+  createdBy?: string;
+  _creationTime?: number;
   lineItems?: Array<{
     componentName: string;
     quantity: number;
@@ -63,13 +64,14 @@ export default function OrdersPage() {
     const form = new FormData(e.currentTarget);
     await createPO({
       poNumber: generatePONumber(),
-      supplierId: form.get("supplierId") as string,
+      supplierId: form.get("supplierId") as any,
       notes: (form.get("notes") as string) || undefined,
     });
     setShowCreate(false);
   }
 
-  async function handleStatusChange(poId: string, newStatus: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function handleStatusChange(poId: any, newStatus: string) {
     await updatePOStatus({ purchaseOrderId: poId, status: newStatus });
     setSelectedPO(null);
   }

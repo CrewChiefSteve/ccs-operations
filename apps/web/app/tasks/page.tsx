@@ -27,19 +27,22 @@ import {
 } from "@/lib/constants";
 import { formatRelativeTime, formatDate, cn } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Task = {
-  _id: string;
+  _id: any;
   title: string;
   description: string;
   assignedTo?: string;
   priority: string;
   status: string;
   dueDate?: number;
-  category: string;
+  dueAt?: number;
+  type?: string;
+  category?: string;
   relatedEntityType?: string;
   relatedEntityId?: string;
   completionNotes?: string;
-  createdBy: string;
+  agentGenerated?: boolean;
   _creationTime: number;
   completedAt?: number;
 };
@@ -72,7 +75,8 @@ export default function TasksPage() {
     setShowCreate(false);
   }
 
-  async function handleComplete(taskId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function handleComplete(taskId: any) {
     const notes = prompt("Completion notes (optional):");
     await completeTask({
       taskId,
@@ -95,8 +99,8 @@ export default function TasksPage() {
   };
 
   const isOverdue = (task: Task) =>
-    task.dueDate &&
-    task.dueDate < Date.now() &&
+    (task.dueDate ?? task.dueAt) &&
+    (task.dueDate ?? task.dueAt ?? 0) < Date.now() &&
     task.status !== "completed" &&
     task.status !== "cancelled";
 
@@ -186,7 +190,7 @@ export default function TasksPage() {
                       config={TASK_PRIORITY_CONFIG}
                     />
                     <Badge className="bg-surface-3 text-text-tertiary">
-                      {task.category}
+                      {task.category ?? task.type ?? "general"}
                     </Badge>
                     {isOverdue(task) && (
                       <Badge className="bg-red-500/15 text-red-400">
@@ -202,7 +206,7 @@ export default function TasksPage() {
                       <Clock size={10} />
                       {formatRelativeTime(task._creationTime)}
                     </span>
-                    {task.createdBy === "agent" && (
+                    {task.agentGenerated && (
                       <span className="font-mono text-accent/60">
                         agent-assigned
                       </span>
@@ -324,7 +328,7 @@ export default function TasksPage() {
                 config={TASK_PRIORITY_CONFIG}
               />
               <Badge className="bg-surface-3 text-text-tertiary">
-                {selectedTask.category}
+                {selectedTask.category ?? selectedTask.type ?? "general"}
               </Badge>
             </div>
 
@@ -339,7 +343,7 @@ export default function TasksPage() {
                 <p className="text-2xs text-text-tertiary">Created</p>
                 <p className="text-text-primary">
                   {formatDate(selectedTask._creationTime)}
-                  {selectedTask.createdBy === "agent" && (
+                  {selectedTask.agentGenerated && (
                     <span className="ml-1.5 font-mono text-2xs text-accent/60">
                       by agent
                     </span>

@@ -15,8 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Truck, ExternalLink, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Supplier = {
-  _id: string;
+  _id: any;
   name: string;
   website?: string;
   contactName?: string;

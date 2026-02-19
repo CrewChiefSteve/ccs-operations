@@ -24,8 +24,9 @@ import {
 import { ALERT_SEVERITY_CONFIG } from "@/lib/constants";
 import { formatRelativeTime, formatDate, cn } from "@/lib/utils";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Alert = {
-  _id: string;
+  _id: any;
   type: string;
   severity: string;
   title: string;

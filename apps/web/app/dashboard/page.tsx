@@ -87,7 +87,8 @@ export default function DashboardPage() {
               </p>
             )}
             {overview?.lowStockComponents?.map(
-              (item: { name: string; available: number; minimum: number; _id: string }, i: number) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (item: { name: string; available: number; minimum: number; _id: any }, i: number) => (
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2"
@@ -127,7 +128,8 @@ export default function DashboardPage() {
               </p>
             )}
             {overview?.recentAlerts?.map(
-              (alert: { title: string; severity: string; _creationTime: number; _id: string }, i: number) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (alert: { title: string; severity: string; createdAt: number; _id: any }, i: number) => (
                 <div
                   key={i}
                   className="flex items-center gap-3 rounded-md bg-surface-2 px-3 py-2"
@@ -142,7 +144,7 @@ export default function DashboardPage() {
                       {alert.title}
                     </p>
                     <p className="text-2xs text-text-tertiary">
-                      {formatRelativeTime(alert._creationTime)}
+                      {formatRelativeTime(alert.createdAt)}
                     </p>
                   </div>
                 </div>
@@ -169,7 +171,8 @@ export default function DashboardPage() {
               </p>
             )}
             {overview?.recentTasks?.map(
-              (task: { title: string; priority: string; category: string; _id: string }, i: number) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (task: { title: string; priority: string; category: string; _id: any }, i: number) => (
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2"
@@ -211,7 +214,8 @@ export default function DashboardPage() {
               </p>
             )}
             {overview?.activePOs?.map(
-              (po: { poNumber: string; supplierName: string; status: string; total: number; _id: string }, i: number) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (po: { poNumber: string; supplierName: string; status: string; total: number; _id: any }, i: number) => (
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2.5"
@@ -249,7 +253,8 @@ export default function DashboardPage() {
               </p>
             )}
             {overview?.activeBuilds?.map(
-              (build: { buildNumber: string; product: string; status: string; quantity: number; _id: string }, i: number) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (build: { buildNumber: string; product: string; status: string; quantity: number; _id: any }, i: number) => (
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-md bg-surface-2 px-3 py-2.5"
