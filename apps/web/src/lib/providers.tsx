@@ -1,15 +1,24 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { ConvexReactClient, useMutation } from "convex/react";
 import { ClerkProvider, useAuth, useUser } from "@clerk/nextjs";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { dark } from "@clerk/themes";
 import { api } from "@convex/_generated/api";
 
-const convex = new ConvexReactClient(
-  process.env.NEXT_PUBLIC_CONVEX_URL as string
-);
+// Lazily create the Convex client so the module can safely be imported
+// even if NEXT_PUBLIC_CONVEX_URL is not yet available. This component is
+// loaded via next/dynamic with ssr:false so it only runs on the client.
+let _convex: ConvexReactClient | null = null;
+function getConvexClient(): ConvexReactClient {
+  if (!_convex) {
+    _convex = new ConvexReactClient(
+      process.env.NEXT_PUBLIC_CONVEX_URL as string
+    );
+  }
+  return _convex;
+}
 
 function ProfileSync({ children }: { children: ReactNode }) {
   const { isSignedIn, user } = useUser();
@@ -24,7 +33,6 @@ function ProfileSync({ children }: { children: ReactNode }) {
         email: user.primaryEmailAddress?.emailAddress ?? "",
         displayName: user.fullName ?? user.firstName ?? "User",
       }).catch(() => {
-        // Best-effort profile sync
         synced.current = false;
       });
     }
@@ -34,20 +42,7 @@ function ProfileSync({ children }: { children: ReactNode }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
-  // Guard: skip providers during static prerendering (SSR/SSG).
-  // Next.js prerenders /_error, /404, /500 pages statically. During that
-  // phase, ClerkProvider and ConvexProviderWithClerk call useContext which
-  // fails if there are React version mismatches in the monorepo, or if
-  // the React server environment doesn't support the context. Deferring
-  // to client-only rendering avoids this entirely.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    // Render children without providers during SSR — the page shell
-    // still renders, and providers attach on the client.
-    return <>{children}</>;
-  }
+  const convex = getConvexClient();
 
   return (
     <ClerkProvider
