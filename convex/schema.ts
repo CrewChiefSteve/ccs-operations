@@ -373,6 +373,18 @@ export default defineSchema({
     .index("by_startedAt", ["startedAt"]),
 
   // ----------------------------------------------------------
+  // RECEIPT PHOTOS (PO receiving workflow)
+  // ----------------------------------------------------------
+  receiptPhotos: defineTable({
+    purchaseOrderId: v.id("purchaseOrders"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    uploadedBy: v.string(),
+    uploadedAt: v.number(),
+  })
+    .index("by_purchaseOrder", ["purchaseOrderId"]),
+
+  // ----------------------------------------------------------
   // PHASE 4: BOM CHANGE TRACKING
   // ----------------------------------------------------------
   bomChangeLogs: defineTable({

@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation } from 'convex/react';
+import { useUser } from '@clerk/clerk-expo';
 import { api } from '@/convex-api';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, ActionButton, StatusBadge } from '../../src/components/ui';
 import { Scanner } from '../../src/components/Scanner';
+import { usePhotoUpload } from '../../src/hooks/usePhotoUpload';
 import { colors, spacing, TOUCH_TARGET } from '../../src/theme/colors';
 
 interface ReceivedQty {
@@ -29,18 +31,28 @@ interface ReceivedQty {
 export default function PODetailScreen() {
   const { poId } = useLocalSearchParams<{ poId: string }>();
   const router = useRouter();
+  const { user } = useUser();
 
   const po = useQuery(api.inventory.purchaseOrders.get, { id: poId });
   const lines = useQuery(api.inventory.purchaseOrders.getLines, {
     purchaseOrderId: poId,
   });
+  const existingPhotos = useQuery(
+    api.inventory.storage.getReceiptPhotos,
+    poId ? { purchaseOrderId: poId as any } : 'skip'
+  );
 
   const receiveLine = useMutation(api.inventory.purchaseOrders.receiveLine);
+  const { uploadPhoto } = usePhotoUpload();
 
   const [received, setReceived] = useState<Record<string, ReceivedQty>>({});
   const [scannerVisible, setScannerVisible] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
+  // Local URIs of newly captured photos (not yet uploaded)
+  const [newPhotos, setNewPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+
+  const userId = user?.primaryEmailAddress?.emailAddress ?? user?.id ?? 'unknown';
 
   // Update received qty for a line
   const updateLine = (lineId: string, field: keyof ReceivedQty, value: any) => {
@@ -67,7 +79,6 @@ export default function PODetailScreen() {
     );
     if (match) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Auto-fill expected qty
       updateLine(match._id, 'qty', String(match.quantity));
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -75,18 +86,23 @@ export default function PODetailScreen() {
     }
   };
 
-  // Take / pick a photo
+  // Capture a new photo
   const capturePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
-      setPhotos((prev) => [...prev, result.assets[0].uri]);
+      setNewPhotos((prev) => [...prev, result.assets[0].uri]);
     }
   };
 
-  // Submit all received lines
+  // Remove a new (not yet uploaded) photo from local state
+  const removeNewPhoto = (uri: string) => {
+    setNewPhotos((prev) => prev.filter((u) => u !== uri));
+  };
+
+  // Submit all received lines and upload any pending photos
   const handleSubmit = async () => {
     const linesToReceive = Object.values(received).filter(
       (r) => r.qty && parseInt(r.qty) > 0
@@ -107,15 +123,30 @@ export default function PODetailScreen() {
           onPress: async () => {
             setSubmitting(true);
             try {
+              // Upload new photos first (non-blocking — failure doesn't abort receipt)
+              if (newPhotos.length > 0) {
+                setUploadingPhotos(true);
+                for (const photoUri of newPhotos) {
+                  try {
+                    await uploadPhoto(photoUri, poId!, userId);
+                  } catch (err) {
+                    console.warn('Photo upload failed:', err);
+                  }
+                }
+                setNewPhotos([]);
+                setUploadingPhotos(false);
+              }
+
+              // Record received quantities
               for (const line of linesToReceive) {
                 await receiveLine({
                   purchaseOrderLineId: line.lineId,
                   quantityReceived: parseInt(line.qty),
                   notes: line.notes || undefined,
                   flagDiscrepancy: line.flagged,
-                  // photos would be uploaded to Convex file storage in production
                 });
               }
+
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', 'Items received and inventory updated.', [
                 { text: 'OK', onPress: () => router.back() },
@@ -124,12 +155,19 @@ export default function PODetailScreen() {
               Alert.alert('Error', err.message ?? 'Failed to receive items.');
             } finally {
               setSubmitting(false);
+              setUploadingPhotos(false);
             }
           },
         },
       ]
     );
   };
+
+  const submitLabel = uploadingPhotos
+    ? 'Uploading photos…'
+    : submitting
+    ? 'Submitting…'
+    : 'Submit Receipt';
 
   if (!po || !lines) {
     return (
@@ -138,6 +176,8 @@ export default function PODetailScreen() {
       </View>
     );
   }
+
+  const hasPhotos = (existingPhotos && existingPhotos.length > 0) || newPhotos.length > 0;
 
   return (
     <ScrollView
@@ -169,11 +209,31 @@ export default function PODetailScreen() {
         />
       </View>
 
-      {/* Photos Preview */}
-      {photos.length > 0 && (
+      {/* Photo Strip — existing (uploaded) + new (local) */}
+      {hasPhotos && (
         <ScrollView horizontal style={styles.photoRow} showsHorizontalScrollIndicator={false}>
-          {photos.map((uri, i) => (
-            <Image key={i} source={{ uri }} style={styles.photoThumb} />
+          {/* Already-uploaded photos from Convex storage */}
+          {existingPhotos?.map((photo: any) => (
+            <View key={photo._id} style={styles.photoWrapper}>
+              <Image source={{ uri: photo.url }} style={styles.photoThumb} />
+              <View style={styles.photoUploadedBadge}>
+                <Ionicons name="cloud-done-outline" size={12} color={colors.success} />
+              </View>
+            </View>
+          ))}
+
+          {/* Newly captured local photos */}
+          {newPhotos.map((uri) => (
+            <View key={uri} style={styles.photoWrapper}>
+              <Image source={{ uri }} style={styles.photoThumb} />
+              <TouchableOpacity
+                style={styles.photoDeleteBtn}
+                onPress={() => removeNewPhoto(uri)}
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle" size={20} color={colors.critical} />
+              </TouchableOpacity>
+            </View>
           ))}
         </ScrollView>
       )}
@@ -205,14 +265,12 @@ export default function PODetailScreen() {
               </View>
             </View>
 
-            {/* Quantity Already Received */}
             {line.quantityReceived > 0 && (
               <Text style={styles.alreadyReceived}>
                 Already received: {line.quantityReceived}
               </Text>
             )}
 
-            {/* Receive Input */}
             <View style={styles.inputRow}>
               <Text style={styles.inputLabel}>Qty Received:</Text>
               <TextInput
@@ -235,7 +293,6 @@ export default function PODetailScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Discrepancy Warning */}
             {hasDiscrepancy && (
               <View style={styles.discrepancyRow}>
                 <Ionicons name="warning" size={16} color={colors.warning} />
@@ -245,7 +302,6 @@ export default function PODetailScreen() {
               </View>
             )}
 
-            {/* Notes */}
             <TextInput
               style={styles.notesInput}
               value={rec?.notes ?? ''}
@@ -260,11 +316,11 @@ export default function PODetailScreen() {
       {/* Submit */}
       <View style={styles.submitRow}>
         <ActionButton
-          label={submitting ? 'Submitting…' : 'Submit Receipt'}
+          label={submitLabel}
           icon="checkmark-circle-outline"
           onPress={handleSubmit}
           variant="primary"
-          disabled={submitting}
+          disabled={submitting || uploadingPhotos}
           style={{ width: '100%' }}
         />
       </View>
@@ -318,12 +374,28 @@ const styles = StyleSheet.create({
   photoRow: {
     marginBottom: spacing.lg,
   },
+  photoWrapper: {
+    position: 'relative',
+    marginRight: spacing.sm,
+  },
   photoThumb: {
     width: 80,
     height: 80,
     borderRadius: 8,
-    marginRight: spacing.sm,
     backgroundColor: colors.bgCard,
+  },
+  photoDeleteBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+  },
+  photoUploadedBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: colors.bgCard,
+    borderRadius: 8,
+    padding: 2,
   },
   sectionTitle: {
     fontSize: 16,
