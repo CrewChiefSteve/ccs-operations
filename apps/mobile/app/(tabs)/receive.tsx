@@ -34,9 +34,10 @@ export default function ReceiveScreen() {
   const router = useRouter();
   const [scannerVisible, setScannerVisible] = useState(false);
 
-  const purchaseOrders = useQuery(api.inventory.purchaseOrders.list, {
-    statuses: PO_RECEIVABLE_STATUSES,
-  });
+  const allOrders = useQuery(api.inventory.purchaseOrders.list, {});
+  const purchaseOrders = allOrders?.filter((po: any) =>
+    PO_RECEIVABLE_STATUSES.includes(po.status)
+  );
 
   const handleScan = (data: string) => {
     setScannerVisible(false);
