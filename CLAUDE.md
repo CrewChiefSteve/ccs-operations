@@ -126,9 +126,22 @@ Custom tokens used throughout (defined in Tailwind config):
 
 The `inventory-mcp` connects via `ConvexHttpClient` to `CONVEX_URL` (dev: `rugged-heron-983.convex.cloud`). Configure in `~/.claude/claude_desktop_config.json`.
 
+## QR Code Formats
+
+The mobile app Scanner component reads these QR formats:
+
+| Entity | QR Value | Scanned By | Example |
+|---|---|---|---|
+| Location | Convex `_id` string | Count screen (matches `locationId`) | `jh7abcd123ef456` |
+| Component | `partNumber` string | Receive screen, Component Lookup | `CCS-MCU-001` |
+| Purchase Order | `PO:{poNumber}` | Receive screen (strips `PO:` prefix) | `PO:PO-2026-001` |
+
+The web dashboard label generator at `/labels` produces QR codes in these formats.
+
 ## Phase Status
 - ✅ Phase 1: Google Drive MCP Server (in `packages/drive-mcp/`)
 - ✅ Phase 2: Convex schema + backend mutations/queries
 - ✅ Phase 3: Inventory agent + transaction workflows (stock monitor, receiving workflow, build workflow, task SLA escalation cron)
 - ✅ Phase 4A: Cross-system intelligence (BOM sync, daily briefing, 3 new schema tables: bomChangeLogs, briefings, bomSnapshots)
 - ✅ Phase 4B: Build order lifecycle (`buildLifecycle.ts`), inventory MCP server (`packages/inventory-mcp/`)
+- ✅ Phase 4 (Mobile+Web): Expo Push Notifications via Convex (`convex/notifications.ts`, `pushTokens` table), QR label generator (`/labels`)

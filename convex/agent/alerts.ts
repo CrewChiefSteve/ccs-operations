@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 // ============================================================
 // AGENT ALERTS — Operational Alert Management
@@ -66,12 +67,30 @@ export const create = mutation({
     agentContext: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("alerts", {
+    const alertId = await ctx.db.insert("alerts", {
       ...args,
       status: "active",
       agentGenerated: args.agentGenerated ?? false,
       updatedAt: Date.now(),
     });
+
+    if (args.severity === "critical") {
+      await ctx.scheduler.runAfter(0, internal.notifications.sendPush, {
+        title: `\u{1F6A8} ${args.title}`,
+        body: args.message.slice(0, 178),
+        data: { type: "alert", alertId: alertId.toString(), severity: args.severity },
+        priority: "high",
+      });
+    } else if (args.severity === "warning") {
+      await ctx.scheduler.runAfter(0, internal.notifications.sendPush, {
+        title: `\u26A0\uFE0F ${args.title}`,
+        body: args.message.slice(0, 178),
+        data: { type: "alert", alertId: alertId.toString(), severity: args.severity },
+        priority: "default",
+      });
+    }
+
+    return alertId;
   },
 });
 

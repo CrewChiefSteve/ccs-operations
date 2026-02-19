@@ -32,6 +32,7 @@ import type * as inventory_stockmonitor from "../inventory/stockmonitor.js";
 import type * as inventory_storage from "../inventory/storage.js";
 import type * as inventory_suppliers from "../inventory/suppliers.js";
 import type * as inventory_transactions from "../inventory/transactions.js";
+import type * as notifications from "../notifications.js";
 import type * as seed from "../seed.js";
 
 import type {
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   "inventory/storage": typeof inventory_storage;
   "inventory/suppliers": typeof inventory_suppliers;
   "inventory/transactions": typeof inventory_transactions;
+  notifications: typeof notifications;
   seed: typeof seed;
 }>;
 

@@ -475,6 +475,22 @@ export default defineSchema({
     .index("by_generatedAt", ["generatedAt"]),
 
   // ----------------------------------------------------------
+  // PUSH TOKENS (Expo Push Notifications)
+  // ----------------------------------------------------------
+  pushTokens: defineTable({
+    token: v.string(),                    // Expo Push Token (ExponentPushToken[xxx])
+    userId: v.string(),                   // Clerk user ID or email
+    deviceName: v.optional(v.string()),
+    platform: v.string(),                 // "ios" | "android"
+    isActive: v.boolean(),
+    registeredAt: v.number(),
+    lastUsedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_token", ["token"])
+    .index("by_isActive", ["isActive"]),
+
+  // ----------------------------------------------------------
   // PHASE 4: BOM SNAPSHOTS (for change diffing)
   // ----------------------------------------------------------
   bomSnapshots: defineTable({

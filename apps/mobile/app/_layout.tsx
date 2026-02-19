@@ -5,6 +5,12 @@ import { useAuth } from '@clerk/clerk-expo';
 import { ConvexClerkProvider } from '../src/providers/ConvexClerkProvider';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../src/theme/colors';
+import { usePushNotifications } from '../src/hooks/usePushNotifications';
+
+function PushRegistration() {
+  usePushNotifications();
+  return null;
+}
 
 function AuthGate() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -31,7 +37,12 @@ function AuthGate() {
     );
   }
 
-  return <Slot />;
+  return (
+    <>
+      {isSignedIn && <PushRegistration />}
+      <Slot />
+    </>
+  );
 }
 
 export default function RootLayout() {

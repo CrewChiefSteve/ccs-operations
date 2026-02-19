@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 // ============================================================
 // AGENT TASKS — Meat Bag Director Task System
@@ -298,6 +299,14 @@ export const escalate = mutation({
     if (args.newPriority) updates.priority = args.newPriority;
 
     await ctx.db.patch(args.id, updates);
+
+    await ctx.scheduler.runAfter(0, internal.notifications.sendPush, {
+      title: `\u{1F4CB} Task Escalated: ${task.title}`,
+      body: `Escalation level ${newLevel}. ${task.description.slice(0, 120)}`,
+      data: { type: "task", taskId: args.id.toString() },
+      priority: "high",
+    });
+
     return { id: args.id, escalationLevel: newLevel };
   },
 });

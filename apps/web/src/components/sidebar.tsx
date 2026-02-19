@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Zap,
   PackageCheck,
+  QrCode,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -41,6 +42,7 @@ const NAV_SECTIONS = [
       { href: "/orders", label: "Purchase Orders", icon: ClipboardList },
       { href: "/receiving", label: "Receive Shipments", icon: PackageCheck },
       { href: "/builds", label: "Build Orders", icon: Hammer },
+      { href: "/labels", label: "QR Labels", icon: QrCode },
     ],
   },
   {

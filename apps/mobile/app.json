@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.crewchiefsteve.operations",
       "infoPlist": {
         "NSCameraUsageDescription": "Camera is used to scan barcodes and capture shipment photos",
-        "NSPhotoLibraryUsageDescription": "Photo library access is used to attach shipment photos to PO receipts"
+        "NSPhotoLibraryUsageDescription": "Photo library access is used to attach shipment photos to PO receipts",
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -29,7 +30,9 @@
       "package": "com.crewchiefsteve.operations",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
       ]
     },
     "plugins": [
@@ -47,7 +50,16 @@
           "photosPermission": "Allow CCS Operations to attach shipment photos to PO receipts."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#e85d26",
+          "sounds": [],
+          "defaultChannel": "ccs-alerts"
+        }
+      ]
     ],
     "extra": {
       "eas": {
