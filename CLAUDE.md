@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Internal operations platform for CCS Technologies. Manages inventory, warehouse, purchasing, build orders, and Google Drive engineering docs. Completely separate from the customer-facing crewchiefsteve.ai.
 
 ## Architecture
-- **Convex** backend with 17 tables (see `convex/schema.ts`)
+- **Convex** backend with 20 tables (see `convex/schema.ts`)
 - **MCP servers** in `packages/` for Claude Code/Chat integration
 - **Next.js 15** web dashboard in `apps/web/` (React 19, Tailwind, Clerk auth)
 - **pnpm workspaces** monorepo — packages: `apps/web`, `packages/shared`
@@ -51,7 +51,14 @@ convex/
 │   ├── buildWorkflow.ts         # Material reservation, consumption, release + BOM feasibility
 │   ├── transactions.ts          # Append-only inventory audit trail
 │   ├── stockmonitor.ts          # Internal mutations: stock threshold + overdue PO checks
-│   └── receiving.ts             # Full receive-from-PO workflow (PO→txn→stock→alerts)
+│   ├── receiving.ts             # Full receive-from-PO workflow (PO→txn→stock→alerts)
+│   ├── supplierApi.ts           # Supplier API integration — stubbed for DigiKey/Mouser/LCSC (Phase 5)
+│   ├── costing.ts               # COGS calculation + cost snapshots (Phase 5)
+│   └── receiptPhotos.ts         # Receipt photo upload/query via Convex storage (Phase 5)
+├── analytics.ts                 # Historical analytics aggregation queries (Phase 5)
+├── users.ts                     # User profile CRUD + role management (Phase 5)
+├── lib/
+│   └── auth.ts                  # Auth helpers (requireAuth, requireAdmin, getCurrentUserId)
 ├── agent/
 │   ├── alerts.ts                # Agent-generated alerts with lifecycle
 │   ├── tasks.ts                 # Meat Bag Director task system with SLA/escalation
@@ -76,8 +83,13 @@ convex/
 | `/builds` | Build orders |
 | `/tasks` | Agent task queue |
 | `/alerts` | Agent alerts |
+| `/analytics` | Historical analytics + charts (Phase 5) |
+| `/pricing` | Supplier pricing comparison (Phase 5) |
+| `/costing` | COGS calculator + cost history (Phase 5) |
+| `/labels` | QR label generator (PO, build, component, location) |
+| `/settings` | User management + role admin (Phase 5) |
 
-UI components live in `apps/web/src/components/ui/`. Status badge colors and label configs are in `apps/web/src/lib/constants.ts`.
+UI components live in `apps/web/src/components/ui/`. Chart components in `apps/web/src/components/charts/`. Status badge colors and label configs are in `apps/web/src/lib/constants.ts`.
 
 ## Tailwind Design Tokens
 Custom tokens used throughout (defined in Tailwind config):
@@ -145,3 +157,4 @@ The web dashboard label generator at `/labels` produces QR codes in these format
 - ✅ Phase 4A: Cross-system intelligence (BOM sync, daily briefing, 3 new schema tables: bomChangeLogs, briefings, bomSnapshots)
 - ✅ Phase 4B: Build order lifecycle (`buildLifecycle.ts`), inventory MCP server (`packages/inventory-mcp/`)
 - ✅ Phase 4 (Mobile+Web): Expo Push Notifications via Convex (`convex/notifications.ts`, `pushTokens` table), QR label generator (`/labels`)
+- ✅ Phase 5: Polish + Scale — supplier API stubs, COGS tracking, analytics, receipt photos, multi-user roles, QR enhancements (3 new tables: `userProfiles`, `supplierApiConfigs`, `productCosts`)

@@ -491,6 +491,81 @@ export default defineSchema({
     .index("by_isActive", ["isActive"]),
 
   // ----------------------------------------------------------
+  // PHASE 5: USER PROFILES (layered on Clerk)
+  // ----------------------------------------------------------
+  userProfiles: defineTable({
+    clerkUserId: v.string(),
+    displayName: v.string(),
+    email: v.string(),
+    role: v.union(v.literal("admin"), v.literal("operator")),
+    isActive: v.boolean(),
+    preferences: v.optional(v.object({
+      notifications: v.optional(v.boolean()),
+      defaultLocationId: v.optional(v.id("locations")),
+    })),
+    lastActiveAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_clerkUserId", ["clerkUserId"])
+    .index("by_role", ["role"])
+    .index("by_isActive", ["isActive"]),
+
+  // ----------------------------------------------------------
+  // PHASE 5: SUPPLIER API CONFIGS
+  // ----------------------------------------------------------
+  supplierApiConfigs: defineTable({
+    supplierId: v.id("suppliers"),
+    provider: v.union(
+      v.literal("digikey"),
+      v.literal("mouser"),
+      v.literal("lcsc"),
+      v.literal("manual")
+    ),
+    apiKeyEncrypted: v.optional(v.string()),
+    clientId: v.optional(v.string()),
+    clientSecret: v.optional(v.string()),
+    isConfigured: v.boolean(),
+    lastSyncAt: v.optional(v.number()),
+    lastSyncStatus: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_supplier", ["supplierId"])
+    .index("by_provider", ["provider"]),
+
+  // ----------------------------------------------------------
+  // PHASE 5: PRODUCT COSTS (COGS snapshots)
+  // ----------------------------------------------------------
+  productCosts: defineTable({
+    productName: v.string(),
+    buildOrderId: v.optional(v.id("buildOrders")),
+    type: v.union(v.literal("estimate"), v.literal("actual")),
+    bomVersion: v.optional(v.string()),
+    quantity: v.number(),
+    materialCost: v.number(),
+    laborCost: v.optional(v.number()),
+    overheadCost: v.optional(v.number()),
+    totalCost: v.number(),
+    costPerUnit: v.number(),
+    lineItems: v.array(v.object({
+      componentId: v.id("components"),
+      componentName: v.string(),
+      partNumber: v.string(),
+      quantityPerUnit: v.number(),
+      unitCost: v.number(),
+      totalCost: v.number(),
+      source: v.string(),
+    })),
+    calculatedAt: v.number(),
+    calculatedBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    .index("by_product", ["productName"])
+    .index("by_buildOrder", ["buildOrderId"])
+    .index("by_type", ["type"])
+    .index("by_calculatedAt", ["calculatedAt"]),
+
+  // ----------------------------------------------------------
   // PHASE 4: BOM SNAPSHOTS (for change diffing)
   // ----------------------------------------------------------
   bomSnapshots: defineTable({

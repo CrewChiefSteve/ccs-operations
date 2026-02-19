@@ -926,6 +926,99 @@ export const completeBuild = mutation({
       ? Math.round((args.qcPassedCount / totalUnits) * 100)
       : 0;
 
+    // Auto-save actual COGS based on consumed materials
+    try {
+      const costLineItems: Array<{
+        componentId: Id<"components">;
+        componentName: string;
+        partNumber: string;
+        quantityPerUnit: number;
+        unitCost: number;
+        totalCost: number;
+        source: string;
+      }> = [];
+
+      let totalMaterialCost = 0;
+
+      for (const entry of relevant) {
+        if (entry.isOptional) continue;
+        const component = await ctx.db.get(entry.componentId);
+        if (!component) continue;
+
+        // Find best cost source (same priority as costing.ts)
+        let unitCost = 0;
+        let source = "unknown";
+
+        const poLines = await ctx.db
+          .query("purchaseOrderLines")
+          .withIndex("by_component", (q: any) => q.eq("componentId", entry.componentId))
+          .order("desc")
+          .take(1);
+        if (poLines.length > 0 && poLines[0].unitPrice > 0) {
+          unitCost = poLines[0].unitPrice;
+          source = "po_last";
+        } else {
+          const invRecords = await ctx.db
+            .query("inventory")
+            .withIndex("by_component", (q: any) => q.eq("componentId", entry.componentId))
+            .collect();
+          const withCost = invRecords.find((i: any) => i.costPerUnit && i.costPerUnit > 0);
+          if (withCost) {
+            unitCost = withCost.costPerUnit ?? 0;
+            source = "inventory_avg";
+          } else {
+            const supplierLinks = await ctx.db
+              .query("componentSuppliers")
+              .withIndex("by_component", (q: any) => q.eq("componentId", entry.componentId))
+              .collect();
+            const preferred = supplierLinks.find((s: any) => s.isPreferred && s.unitPrice > 0);
+            if (preferred) {
+              unitCost = preferred.unitPrice ?? 0;
+              source = "supplier_preferred";
+            } else {
+              const anySup = supplierLinks.find((s: any) => s.unitPrice > 0);
+              if (anySup) {
+                unitCost = anySup.unitPrice ?? 0;
+                source = "supplier_price";
+              }
+            }
+          }
+        }
+
+        const lineTotalCost = unitCost * entry.quantityPerUnit * totalUnits;
+        totalMaterialCost += lineTotalCost;
+
+        costLineItems.push({
+          componentId: entry.componentId,
+          componentName: component.name,
+          partNumber: component.partNumber,
+          quantityPerUnit: entry.quantityPerUnit,
+          unitCost,
+          totalCost: lineTotalCost,
+          source,
+        });
+      }
+
+      const costPerUnit = totalUnits > 0 ? totalMaterialCost / totalUnits : 0;
+
+      await ctx.db.insert("productCosts", {
+        productName: order.productName,
+        buildOrderId: args.id,
+        type: "actual",
+        bomVersion: order.bomVersion,
+        quantity: totalUnits,
+        materialCost: totalMaterialCost,
+        totalCost: totalMaterialCost,
+        costPerUnit,
+        lineItems: costLineItems,
+        calculatedAt: Date.now(),
+        calculatedBy: "build_lifecycle",
+        notes: `Auto-calculated on build completion: ${order.buildNumber}`,
+      });
+    } catch {
+      // COGS auto-save is best-effort — don't fail the build completion
+    }
+
     return {
       success: true,
       buildNumber: order.buildNumber,

@@ -129,3 +129,27 @@ export const INVENTORY_STATUS_CONFIG: Record<
   },
   damaged: { label: "Damaged", color: "bg-red-500/15 text-red-400" },
 };
+
+// Phase 5: User roles
+export const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
+  admin: { label: "Admin", color: "bg-accent/15 text-accent" },
+  operator: { label: "Operator", color: "bg-blue-500/15 text-blue-400" },
+};
+
+// Phase 5: Supplier API providers
+export const SUPPLIER_PROVIDER_LABELS: Record<string, string> = {
+  digikey: "DigiKey",
+  mouser: "Mouser",
+  lcsc: "LCSC",
+  manual: "Manual",
+};
+
+export const SUPPLIER_PROVIDER_CONFIG: Record<
+  string,
+  { label: string; color: string }
+> = {
+  digikey: { label: "DigiKey", color: "bg-red-500/15 text-red-400" },
+  mouser: { label: "Mouser", color: "bg-blue-500/15 text-blue-400" },
+  lcsc: { label: "LCSC", color: "bg-emerald-500/15 text-emerald-400" },
+  manual: { label: "Manual", color: "bg-surface-3 text-text-secondary" },
+};

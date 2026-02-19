@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { QRCodeSVG } from "qrcode.react";
 
-type LabelType = "location" | "component";
+type LabelType = "location" | "component" | "purchase_order" | "build_order";
 
 interface Label {
   type: LabelType;
@@ -21,11 +21,21 @@ export default function LabelsPage() {
   const [labelSize, setLabelSize] = useState<"small" | "medium" | "large">(
     "medium"
   );
+  const [copies, setCopies] = useState(1);
 
   const locations = useQuery(api.inventory.locations.list, {});
   const components = useQuery(api.inventory.components.list, {});
+  const purchaseOrders = useQuery(api.inventory.purchaseOrders.list, {});
+  const buildOrders = useQuery(api.inventory.buildOrders.list, {});
 
-  const items = labelType === "location" ? locations : components;
+  const items =
+    labelType === "location"
+      ? locations
+      : labelType === "component"
+        ? components
+        : labelType === "purchase_order"
+          ? purchaseOrders
+          : buildOrders;
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) => {
@@ -37,14 +47,14 @@ export default function LabelsPage() {
 
   const selectAll = () => {
     if (!items) return;
-    setSelectedIds(new Set(items.map((i) => i._id)));
+    setSelectedIds(new Set(items.map((i: Record<string, unknown>) => i._id as string)));
   };
 
   const selectNone = () => setSelectedIds(new Set());
 
-  const labels: Label[] = (items ?? [])
-    .filter((item) => selectedIds.has(item._id))
-    .map((item): Label => {
+  const baseLabels: Label[] = (items ?? [])
+    .filter((item: Record<string, unknown>) => selectedIds.has(item._id as string))
+    .map((item: Record<string, unknown>): Label => {
       if (labelType === "location") {
         const loc = item as {
           _id: string;
@@ -59,7 +69,7 @@ export default function LabelsPage() {
           line2: loc.type.toUpperCase(),
           line3: loc.description,
         };
-      } else {
+      } else if (labelType === "component") {
         const comp = item as {
           _id: string;
           partNumber: string;
@@ -73,8 +83,41 @@ export default function LabelsPage() {
           line2: comp.name,
           line3: comp.category,
         };
+      } else if (labelType === "purchase_order") {
+        const po = item as {
+          _id: string;
+          poNumber: string;
+          supplierName: string;
+          status: string;
+        };
+        return {
+          type: "purchase_order",
+          qrValue: `PO:${po.poNumber}`,
+          line1: po.poNumber,
+          line2: po.supplierName,
+          line3: po.status.replace("_", " "),
+        };
+      } else {
+        const build = item as {
+          _id: string;
+          buildNumber: string;
+          productName: string;
+          quantity: number;
+        };
+        return {
+          type: "build_order",
+          qrValue: `BUILD:${build.buildNumber}`,
+          line1: build.buildNumber,
+          line2: build.productName.replace(/_/g, " "),
+          line3: `Qty: ${build.quantity}`,
+        };
       }
     });
+
+  // Expand labels by copy count
+  const labels: Label[] = baseLabels.flatMap((label) =>
+    Array.from({ length: copies }, () => label)
+  );
 
   const qrSize =
     labelSize === "small" ? 80 : labelSize === "medium" ? 120 : 160;
@@ -84,6 +127,31 @@ export default function LabelsPage() {
       : labelSize === "medium"
         ? "w-[2.5in] h-[1.25in]"
         : "w-[3in] h-[1.5in]";
+
+  // Helper to get display fields for the item list
+  function getItemSubtext(item: Record<string, unknown>): {
+    mono: string;
+    label: string;
+  } {
+    switch (labelType) {
+      case "component":
+        return { mono: item.partNumber as string, label: item.name as string };
+      case "location":
+        return { mono: item.type as string, label: item.name as string };
+      case "purchase_order":
+        return {
+          mono: item.poNumber as string,
+          label: (item.supplierName as string) ?? "",
+        };
+      case "build_order":
+        return {
+          mono: item.buildNumber as string,
+          label: ((item.productName as string) ?? "").replace(/_/g, " "),
+        };
+      default:
+        return { mono: "", label: item.name as string };
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -108,6 +176,8 @@ export default function LabelsPage() {
             >
               <option value="location">Locations</option>
               <option value="component">Components</option>
+              <option value="purchase_order">Purchase Orders</option>
+              <option value="build_order">Build Orders</option>
             </select>
           </div>
 
@@ -128,6 +198,20 @@ export default function LabelsPage() {
             </select>
           </div>
 
+          <div>
+            <label className="text-sm font-medium text-gray-700">Copies</label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={copies}
+              onChange={(e) =>
+                setCopies(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))
+              }
+              className="ml-2 border rounded px-3 py-1.5 text-sm text-gray-900 w-16 text-center"
+            />
+          </div>
+
           <button
             onClick={selectAll}
             className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
@@ -146,7 +230,12 @@ export default function LabelsPage() {
               onClick={() => window.print()}
               className="px-4 py-1.5 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700"
             >
-              Print {labels.length} Label{labels.length > 1 ? "s" : ""}
+              Print {labels.length} Label{labels.length !== 1 ? "s" : ""}
+              {copies > 1 && (
+                <span className="ml-1 opacity-75">
+                  ({baseLabels.length} &times; {copies})
+                </span>
+              )}
             </button>
           )}
         </div>
@@ -154,30 +243,29 @@ export default function LabelsPage() {
         <div className="max-h-64 overflow-y-auto border rounded bg-white">
           {!items ? (
             <div className="p-4 text-sm text-gray-500">Loading...</div>
-          ) : items.length === 0 ? (
+          ) : (items as Array<Record<string, unknown>>).length === 0 ? (
             <div className="p-4 text-sm text-gray-500">No items found.</div>
           ) : (
-            (items as Array<Record<string, unknown>>).map((item) => (
-              <label
-                key={item._id as string}
-                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(item._id as string)}
-                  onChange={() => toggleItem(item._id as string)}
-                  className="w-4 h-4"
-                />
-                <span className="font-mono text-sm text-gray-500">
-                  {labelType === "component"
-                    ? (item.partNumber as string)
-                    : (item.type as string)}
-                </span>
-                <span className="text-sm font-medium text-gray-900">
-                  {item.name as string}
-                </span>
-              </label>
-            ))
+            (items as Array<Record<string, unknown>>).map((item) => {
+              const { mono, label } = getItemSubtext(item);
+              return (
+                <label
+                  key={item._id as string}
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item._id as string)}
+                    onChange={() => toggleItem(item._id as string)}
+                    className="w-4 h-4"
+                  />
+                  <span className="font-mono text-sm text-gray-500">{mono}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {label}
+                  </span>
+                </label>
+              );
+            })
           )}
         </div>
       </div>

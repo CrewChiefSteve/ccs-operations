@@ -6,9 +6,11 @@ import { UserButton } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
+  BarChart3,
   Cpu,
   Package,
   Truck,
+  DollarSign,
   ClipboardList,
   Hammer,
   ListChecks,
@@ -18,6 +20,8 @@ import {
   Zap,
   PackageCheck,
   QrCode,
+  Calculator,
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,6 +30,7 @@ const NAV_SECTIONS = [
     label: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
   {
@@ -34,6 +39,7 @@ const NAV_SECTIONS = [
       { href: "/catalog", label: "Components", icon: Cpu },
       { href: "/inventory", label: "Stock Levels", icon: Package },
       { href: "/suppliers", label: "Suppliers", icon: Truck },
+      { href: "/pricing", label: "Pricing", icon: DollarSign },
     ],
   },
   {
@@ -42,6 +48,7 @@ const NAV_SECTIONS = [
       { href: "/orders", label: "Purchase Orders", icon: ClipboardList },
       { href: "/receiving", label: "Receive Shipments", icon: PackageCheck },
       { href: "/builds", label: "Build Orders", icon: Hammer },
+      { href: "/costing", label: "COGS", icon: Calculator },
       { href: "/labels", label: "QR Labels", icon: QrCode },
     ],
   },
@@ -50,6 +57,12 @@ const NAV_SECTIONS = [
     items: [
       { href: "/tasks", label: "Task Queue", icon: ListChecks },
       { href: "/alerts", label: "Alerts", icon: AlertTriangle },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];

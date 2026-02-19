@@ -55,3 +55,15 @@ export const TASK_TYPES = ["count_inventory", "receive_shipment", "move_stock", 
 export const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 
 export type Priority = typeof PRIORITIES[number];
+
+// Phase 5: User roles
+export const USER_ROLES = ["admin", "operator"] as const;
+export type UserRole = typeof USER_ROLES[number];
+
+// Phase 5: Supplier API providers
+export const SUPPLIER_PROVIDERS = ["digikey", "mouser", "lcsc", "manual"] as const;
+export type SupplierProvider = typeof SUPPLIER_PROVIDERS[number];
+
+// Phase 5: Cost types
+export const COST_TYPES = ["estimate", "actual"] as const;
+export type CostType = typeof COST_TYPES[number];

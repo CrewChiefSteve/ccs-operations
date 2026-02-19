@@ -20,6 +20,9 @@ import {
   PackageOpen,
   ClipboardCheck,
   AlertCircle,
+  Camera,
+  X,
+  Image,
 } from "lucide-react";
 import { PO_STATUS_CONFIG } from "@/lib/constants";
 import { formatDate, formatCurrency } from "@/lib/utils";
@@ -267,11 +270,47 @@ function ReceivingModal({
 
   const locations = useQuery(api.inventory.locations.list, {});
   const receiveShipment = useMutation(api.inventory.receiving.receiveShipment);
+  const generateUploadUrl = useMutation(api.inventory.receiptPhotos.generateUploadUrl);
+  const savePhoto = useMutation(api.inventory.receiptPhotos.savePhoto);
+  const receiptPhotos = useQuery(
+    api.inventory.receiptPhotos.listByPO,
+    { purchaseOrderId: poId }
+  );
+  const deletePhotoMutation = useMutation(api.inventory.receiptPhotos.deletePhoto);
 
   const [lineReceipts, setLineReceipts] = useState<Record<string, LineReceipt>>({});
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const result = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await result.json();
+      await savePhoto({
+        purchaseOrderId: poId,
+        storageId,
+        fileName: file.name,
+        uploadedBy: "dashboard",
+      });
+    } catch (err) {
+      setError("Failed to upload photo");
+    }
+    setUploading(false);
+    // Reset file input
+    e.target.value = "";
+  }
 
   // Initialize line receipts when details load
   if (details?.lines && Object.keys(lineReceipts).length === 0) {
@@ -531,6 +570,77 @@ function ReceivingModal({
               className="input-base mt-1 resize-none"
             />
           </div>
+
+          {/* Receipt Photos */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-text-secondary">
+                <Camera size={12} className="inline mr-1" />
+                Shipment photos
+              </label>
+              <label className="btn-ghost text-2xs cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                  disabled={uploading}
+                />
+                {uploading ? "Uploading…" : "+ Add Photo"}
+              </label>
+            </div>
+            {receiptPhotos && receiptPhotos.length > 0 ? (
+              <div className="flex gap-2 flex-wrap">
+                {receiptPhotos.map((photo) => (
+                  <div
+                    key={photo._id}
+                    className="relative group w-20 h-20 rounded-lg overflow-hidden border border-surface-4 bg-surface-2"
+                  >
+                    {photo.url ? (
+                      <img
+                        src={photo.url}
+                        alt={photo.fileName}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setPreviewPhoto(photo.url!)}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image size={16} className="text-text-tertiary" />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => deletePhotoMutation({ photoId: photo._id })}
+                      className="absolute top-0.5 right-0.5 hidden group-hover:flex h-5 w-5 items-center justify-center rounded-full bg-red-500/80 text-white"
+                      title="Delete photo"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-2xs text-text-tertiary">
+                No photos yet. Snap a photo of the shipment for records.
+              </p>
+            )}
+          </div>
+
+          {/* Photo Preview Modal */}
+          {previewPhoto && (
+            <Modal
+              open
+              onClose={() => setPreviewPhoto(null)}
+              title="Receipt Photo"
+              size="lg"
+            >
+              <img
+                src={previewPhoto}
+                alt="Receipt photo"
+                className="w-full rounded-lg"
+              />
+            </Modal>
+          )}
 
           {/* Error */}
           {error && (
