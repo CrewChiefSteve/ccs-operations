@@ -69,8 +69,8 @@
       "eas": {
         "projectId": "ed109c39-aba5-4cf9-a4bf-cd1edb2a043f"
       },
-      "clerkPublishableKey": "pk_test_Z2l2aW5nLWFkZGVyLTIxLmNsZXJrLmFjY291bnRzLmRldiQ",
-      "convexUrl": "https://rugged-heron-983.convex.cloud",
+      "clerkPublishableKey": "pk_live_Y2xlcmsuY3Jld2NoaWVmc3RldmUuYWkk",
+      "convexUrl": "https://hip-rabbit-748.convex.cloud",
       "router": {
         "origin": false
       }

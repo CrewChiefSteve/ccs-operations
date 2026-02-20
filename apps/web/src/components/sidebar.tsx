@@ -22,6 +22,7 @@ import {
   QrCode,
   Calculator,
   Settings,
+  Smartphone,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -62,6 +63,7 @@ const NAV_SECTIONS = [
   {
     label: "System",
     items: [
+      { href: "/download", label: "Mobile App", icon: Smartphone },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
