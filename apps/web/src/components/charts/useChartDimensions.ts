@@ -1,44 +1,35 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 
 /**
- * Measures container width using ResizeObserver with debouncing
- * to avoid the infinite re-render loop caused by Recharts'
- * ResponsiveContainer on React 19.
+ * Measures container width for Recharts charts.
+ *
+ * Replaces ResponsiveContainer which causes infinite re-render loops
+ * (React error #185) on React 19. Measures width on mount and window
+ * resize only — NOT via ResizeObserver — to avoid the feedback loop
+ * where chart render → container resize → observer fires → re-render.
  */
 export function useChartDimensions() {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
 
-  const handleResize = useCallback((entries: ResizeObserverEntry[]) => {
-    const entry = entries[0];
-    if (entry) {
-      const newWidth = Math.floor(entry.contentRect.width);
-      setWidth((prev) => {
-        // Only update if the width actually changed by at least 1px
-        // to prevent resize loops from sub-pixel rounding
-        if (Math.abs(prev - newWidth) >= 1) {
-          return newWidth;
-        }
-        return prev;
-      });
-    }
-  }, []);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    // Set initial width synchronously
-    const rect = el.getBoundingClientRect();
-    setWidth(Math.floor(rect.width));
+    const measure = () => {
+      const w = Math.floor(el.clientWidth);
+      if (w > 0) setWidth(w);
+    };
 
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(el);
+    // Initial measurement
+    measure();
 
-    return () => observer.disconnect();
-  }, [handleResize]);
+    // Re-measure only on window resize (not container resize)
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   return { ref, width };
 }
