@@ -76,6 +76,7 @@ export function CCSAreaChart({
               stroke={color}
               strokeWidth={2}
               fill={`url(#gradient-${dataKey})`}
+              isAnimationActive={false}
             />
           </AreaChart>
         </div>

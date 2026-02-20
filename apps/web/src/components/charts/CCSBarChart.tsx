@@ -92,6 +92,7 @@ export function CCSBarChart({
                 fill={bar.color ?? COLORS[i % COLORS.length]}
                 stackId={bar.stackId}
                 radius={[3, 3, 0, 0]}
+                isAnimationActive={false}
               >
                 {colorByIndex &&
                   data.map((_, idx) => (

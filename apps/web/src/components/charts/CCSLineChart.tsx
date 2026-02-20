@@ -90,6 +90,7 @@ export function CCSLineChart({
                 strokeDasharray={line.dashed ? "5 5" : undefined}
                 dot={false}
                 activeDot={{ r: 4, strokeWidth: 0 }}
+                isAnimationActive={false}
               />
             ))}
           </LineChart>
