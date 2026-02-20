@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
@@ -34,7 +34,13 @@ export default function AnalyticsPage() {
   const [burnPeriod, setBurnPeriod] = useState<"30d" | "90d" | "all">("90d");
 
   const periodMs = period === "30d" ? 30 : period === "90d" ? 90 : 180;
-  const startDate = Date.now() - periodMs * 86400000;
+  // Memoize startDate so it doesn't change on every render.
+  // Date.now() in the render body creates a new value each render,
+  // causing useQuery to see new args → new query → re-render → loop.
+  const startDate = useMemo(
+    () => Date.now() - periodMs * 86400000,
+    [periodMs]
+  );
 
   const summaryStats = useQuery(api.analytics.getSummaryStats);
   const spendData = useQuery(api.analytics.getSpendByPeriod, {
@@ -52,8 +58,8 @@ export default function AnalyticsPage() {
   const costTrends = useQuery(api.analytics.getCostTrends, { limit: 50 });
   const supplierPerf = useQuery(api.analytics.getSupplierPerformance);
 
-  const currencyFormatter = (v: number) => formatCurrency(v);
-  const daysFormatter = (v: number) => `${v}d`;
+  const currencyFormatter = useCallback((v: number) => formatCurrency(v), []);
+  const daysFormatter = useCallback((v: number) => `${v}d`, []);
 
   return (
     <div className="space-y-5">
