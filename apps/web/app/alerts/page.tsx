@@ -22,6 +22,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { ALERT_SEVERITY_CONFIG } from "@/lib/constants";
+import { resolveAlertAgent } from "@/lib/crew";
+import { AgentAvatar } from "@/components/ui";
 import { formatRelativeTime, formatDate, cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,6 +37,8 @@ type Alert = {
   relatedEntityId?: string;
   status: string;
   assignedTo?: string;
+  agentGenerated?: boolean;
+  agentContext?: string;
   _creationTime: number;
   resolvedAt?: number;
   resolvedBy?: string;
@@ -178,6 +182,10 @@ export default function AlertsPage() {
                   </p>
                   <div className="mt-2 flex items-center gap-4 text-2xs text-text-tertiary">
                     <span>{formatRelativeTime(alert._creationTime)}</span>
+                    {(() => {
+                      const agent = resolveAlertAgent(alert);
+                      return agent ? <AgentAvatar agent={agent} size="sm" /> : null;
+                    })()}
                     {alert.status === "acknowledged" && (
                       <span className="flex items-center gap-1 text-blue-400">
                         <Eye size={10} />

@@ -4,3 +4,4 @@ export { PageHeader } from "./page-header";
 export { EmptyState, LoadingState, LoadingSkeleton } from "./empty-state";
 export { Modal, FormField } from "./modal";
 export { DataTable } from "./data-table";
+export { AgentAvatar } from "./agent-avatar";

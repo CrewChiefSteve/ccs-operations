@@ -23,6 +23,7 @@ import {
   Calculator,
   Settings,
   Smartphone,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -56,6 +57,7 @@ const NAV_SECTIONS = [
   {
     label: "Agent",
     items: [
+      { href: "/crew", label: "Ops Crew", icon: Users },
       { href: "/tasks", label: "Task Queue", icon: ListChecks },
       { href: "/alerts", label: "Alerts", icon: AlertTriangle },
     ],

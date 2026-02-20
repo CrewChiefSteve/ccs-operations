@@ -25,6 +25,8 @@ import {
   TASK_PRIORITY_CONFIG,
   TASK_STATUS_CONFIG,
 } from "@/lib/constants";
+import { resolveTaskAgent } from "@/lib/crew";
+import { AgentAvatar } from "@/components/ui";
 import { formatRelativeTime, formatDate, cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,6 +45,7 @@ type Task = {
   relatedEntityId?: string;
   completionNotes?: string;
   agentGenerated?: boolean;
+  agentContext?: string;
   _creationTime: number;
   completedAt?: number;
 };
@@ -206,11 +209,12 @@ export default function TasksPage() {
                       <Clock size={10} />
                       {formatRelativeTime(task._creationTime)}
                     </span>
-                    {task.agentGenerated && (
-                      <span className="font-mono text-accent/60">
-                        agent-assigned
-                      </span>
-                    )}
+                    {task.agentGenerated && (() => {
+                      const agent = resolveTaskAgent(task);
+                      return agent ? <AgentAvatar agent={agent} size="sm" /> : (
+                        <span className="font-mono text-accent/60">agent</span>
+                      );
+                    })()}
                     {task.dueDate && (
                       <span
                         className={cn(
@@ -343,11 +347,16 @@ export default function TasksPage() {
                 <p className="text-2xs text-text-tertiary">Created</p>
                 <p className="text-text-primary">
                   {formatDate(selectedTask._creationTime)}
-                  {selectedTask.agentGenerated && (
-                    <span className="ml-1.5 font-mono text-2xs text-accent/60">
-                      by agent
-                    </span>
-                  )}
+                  {selectedTask.agentGenerated && (() => {
+                    const agent = resolveTaskAgent(selectedTask);
+                    return agent ? (
+                      <span className="ml-1.5 inline-flex items-center">
+                        <AgentAvatar agent={agent} size="sm" />
+                      </span>
+                    ) : (
+                      <span className="ml-1.5 font-mono text-2xs text-accent/60">by agent</span>
+                    );
+                  })()}
                 </p>
               </div>
               <div>
