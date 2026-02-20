@@ -78,8 +78,9 @@ export default function PODetailScreen() {
         line.componentBarcode === data
     );
     if (match) {
+      const remaining = match.quantity - (match.quantityReceived ?? 0);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      updateLine(match._id, 'qty', String(match.quantity));
+      updateLine(match._id, 'qty', String(remaining));
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('No Match', `Barcode "${data}" doesn't match any PO line items.`);
@@ -245,14 +246,16 @@ export default function PODetailScreen() {
 
       {lines.map((line: any) => {
         const rec = received[line._id];
+        const remaining = line.quantity - (line.quantityReceived ?? 0);
+        const isFullyReceived = remaining <= 0;
         const enteredQty = parseInt(rec?.qty || '0');
-        const hasDiscrepancy = rec?.qty && enteredQty !== line.quantity;
+        const hasDiscrepancy = rec?.qty && enteredQty !== remaining;
 
         return (
-          <Card key={line._id} style={styles.lineCard}>
+          <Card key={line._id} style={[styles.lineCard, isFullyReceived && styles.lineCardReceived]}>
             <View style={styles.lineHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.componentName}>
+                <Text style={[styles.componentName, isFullyReceived && styles.textDimmed]}>
                   {line.componentName ?? 'Unknown Component'}
                 </Text>
                 <Text style={styles.componentPN}>
@@ -260,55 +263,68 @@ export default function PODetailScreen() {
                 </Text>
               </View>
               <View style={styles.expectedCol}>
-                <Text style={styles.expectedLabel}>Expected</Text>
-                <Text style={styles.expectedQty}>{line.quantity}</Text>
-              </View>
-            </View>
-
-            {line.quantityReceived > 0 && (
-              <Text style={styles.alreadyReceived}>
-                Already received: {line.quantityReceived}
-              </Text>
-            )}
-
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Qty Received:</Text>
-              <TextInput
-                style={[
-                  styles.qtyInput,
-                  hasDiscrepancy && styles.qtyInputDiscrepancy,
-                ]}
-                value={rec?.qty ?? ''}
-                onChangeText={(v) => updateLine(line._id, 'qty', v)}
-                keyboardType="numeric"
-                placeholder={String(line.quantity)}
-                placeholderTextColor={colors.textMuted}
-              />
-              <TouchableOpacity
-                style={styles.matchButton}
-                onPress={() => updateLine(line._id, 'qty', String(line.quantity))}
-                hitSlop={8}
-              >
-                <Text style={styles.matchButtonText}>Match</Text>
-              </TouchableOpacity>
-            </View>
-
-            {hasDiscrepancy && (
-              <View style={styles.discrepancyRow}>
-                <Ionicons name="warning" size={16} color={colors.warning} />
-                <Text style={styles.discrepancyText}>
-                  Discrepancy: expected {line.quantity}, entering {enteredQty}
+                <Text style={styles.expectedLabel}>
+                  {isFullyReceived ? 'Received' : 'Expected'}
+                </Text>
+                <Text style={[styles.expectedQty, isFullyReceived && { color: colors.success }]}>
+                  {isFullyReceived ? `${line.quantityReceived}/${line.quantity}` : line.quantity}
                 </Text>
               </View>
-            )}
+            </View>
 
-            <TextInput
-              style={styles.notesInput}
-              value={rec?.notes ?? ''}
-              onChangeText={(v) => updateLine(line._id, 'notes', v)}
-              placeholder="Notes (optional)"
-              placeholderTextColor={colors.textMuted}
-            />
+            {isFullyReceived ? (
+              <View style={styles.fullyReceivedBadge}>
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                <Text style={styles.fullyReceivedText}>Fully received</Text>
+              </View>
+            ) : (
+              <>
+                {line.quantityReceived > 0 && (
+                  <Text style={styles.alreadyReceived}>
+                    Already received: {line.quantityReceived} — {remaining} remaining
+                  </Text>
+                )}
+
+                <View style={styles.inputRow}>
+                  <Text style={styles.inputLabel}>Qty Received:</Text>
+                  <TextInput
+                    style={[
+                      styles.qtyInput,
+                      hasDiscrepancy && styles.qtyInputDiscrepancy,
+                    ]}
+                    value={rec?.qty ?? ''}
+                    onChangeText={(v) => updateLine(line._id, 'qty', v)}
+                    keyboardType="numeric"
+                    placeholder={String(remaining)}
+                    placeholderTextColor={colors.textMuted}
+                  />
+                  <TouchableOpacity
+                    style={styles.matchButton}
+                    onPress={() => updateLine(line._id, 'qty', String(remaining))}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.matchButtonText}>Match</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {hasDiscrepancy && (
+                  <View style={styles.discrepancyRow}>
+                    <Ionicons name="warning" size={16} color={colors.warning} />
+                    <Text style={styles.discrepancyText}>
+                      Discrepancy: expected {remaining}, entering {enteredQty}
+                    </Text>
+                  </View>
+                )}
+
+                <TextInput
+                  style={styles.notesInput}
+                  value={rec?.notes ?? ''}
+                  onChangeText={(v) => updateLine(line._id, 'notes', v)}
+                  placeholder="Notes (optional)"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </>
+            )}
           </Card>
         );
       })}
@@ -405,6 +421,25 @@ const styles = StyleSheet.create({
   },
   lineCard: {
     marginBottom: spacing.md,
+  },
+  lineCardReceived: {
+    opacity: 0.6,
+  },
+  textDimmed: {
+    color: colors.textSecondary,
+  },
+  fullyReceivedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  fullyReceivedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.success,
   },
   lineHeader: {
     flexDirection: 'row',
