@@ -21,11 +21,12 @@ import {
 import { Scanner } from '../../src/components/Scanner';
 import { colors, spacing, poStatusColor } from '../../src/theme/colors';
 
-const PO_RECEIVABLE_STATUSES = ['shipped', 'confirmed', 'submitted'];
+const PO_RECEIVABLE_STATUSES = ['shipped', 'confirmed', 'partial_received'];
 
 function poStatusVariant(status: string) {
   if (status === 'shipped') return 'warning' as const;
   if (status === 'confirmed') return 'info' as const;
+  if (status === 'partial_received') return 'warning' as const;
   if (status === 'received') return 'success' as const;
   return 'muted' as const;
 }

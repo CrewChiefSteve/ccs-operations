@@ -378,7 +378,7 @@ export const receiveLine = mutation({
 
       if (allReceived && po.status !== "received") {
         await ctx.db.patch(line.purchaseOrderId, { status: "received", actualDelivery: Date.now(), updatedAt: Date.now() });
-      } else if (anyReceived && po.status === "shipped") {
+      } else if (anyReceived && ["shipped", "confirmed"].includes(po.status)) {
         await ctx.db.patch(line.purchaseOrderId, { status: "partial_received", updatedAt: Date.now() });
       }
     }
