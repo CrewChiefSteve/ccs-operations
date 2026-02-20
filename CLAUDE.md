@@ -109,6 +109,74 @@ Custom tokens used throughout (defined in Tailwind config):
 - Tire-Temp-Probe
 - Shared: `Products/Shared_Components/` (BLE_Protocol, Common_Libraries, Datasheets, ESP32_C3)
 
+## React Version Coexistence (React 18 + 19)
+
+This monorepo runs **two different React versions**: `apps/web` uses React 19 (Next.js 15) and `apps/mobile` uses React 18 (Expo 52 / React Native 0.76). This is a recurring source of crashes and build failures. **Read this section before touching React, package.json, .npmrc, or Metro config.**
+
+### The Problem
+pnpm hoists one version of shared dependencies to the root `node_modules/`. If React 19 gets hoisted, the mobile app crashes on startup with `"Objects are not valid as a React child"` or `"Cannot read property 'useEffect' of null"`. If React 18 gets hoisted, the web app's Next.js build fails.
+
+### Current Solution (3 layers)
+
+**Layer 1: Root package.json — React 19 for web builds**
+```json
+"dependencies": {
+  "react": "^19.0.0",
+  "react-dom": "^19.0.0"
+}
+```
+This ensures React 19 is available at root for the web app's Vercel builds.
+
+**Layer 2: .npmrc — Anti-hoist rules**
+```ini
+node-linker=hoisted
+public-hoist-pattern[]=!react
+public-hoist-pattern[]=!react-dom
+public-hoist-pattern[]=*
+```
+Tells pnpm NOT to hoist react/react-dom, so each app gets its own version in its local `node_modules/`. In practice, pnpm still puts React 19 at root (from root deps) and React 18 in `apps/mobile/node_modules/`.
+
+**Layer 3: Metro resolveRequest — Force React 18 in mobile bundle**
+`apps/mobile/metro.config.js` uses a `resolveRequest` hook that intercepts **every** import of `react`, `react/jsx-runtime`, `react/jsx-dev-runtime`, `react-dom`, and `react-native` — regardless of which package is importing them — and forces resolution to `apps/mobile/node_modules/react` (18.3.1). This is the critical layer. `extraNodeModules` alone is NOT sufficient because transitive dependencies (Clerk, Convex, etc.) resolve from the monorepo root.
+
+### Checklist: When Modifying Dependencies
+
+- [ ] **Never** change root `react`/`react-dom` versions without checking mobile build
+- [ ] **Never** remove the `resolveRequest` hook from `metro.config.js`
+- [ ] After any `pnpm install`, verify: `apps/mobile/node_modules/react/package.json` → version 18.3.1
+- [ ] After any `pnpm install`, verify: `node_modules/react/package.json` → version 19.x (for web)
+- [ ] If adding new React-dependent packages, test both `pnpm build` (web) AND mobile APK build
+- [ ] If Expo SDK upgrades change the required React version, update all three layers
+
+### Future Improvement (from Portal project)
+Consider adding pnpm overrides to pin `@types/react` and `@types/react-dom` across all workspaces:
+```json
+"pnpm": {
+  "overrides": {
+    "@types/react": "18.2.79",
+    "@types/react-dom": "18.2.25"
+  }
+}
+```
+And add Expo-specific hoisting patterns to `.npmrc`:
+```ini
+public-hoist-pattern[]=*react-native*
+public-hoist-pattern[]=*expo*
+public-hoist-pattern[]=*babel*
+public-hoist-pattern[]=@react-native/*
+public-hoist-pattern[]=@expo/*
+public-hoist-pattern[]=@babel/*
+```
+And exclude pinned types from Expo's auto-fix in mobile `package.json`:
+```json
+"expo": { "install": { "exclude": ["@types/react"] } }
+```
+
+### Deployment Architecture
+- **Convex** (backend): Deployed with `npx convex deploy --yes`. Takes effect instantly for both web and mobile — no rebuilds needed.
+- **Vercel** (web frontend): Deployed via git push to `master`. Only affects `apps/web`.
+- **Mobile APK**: Built locally or via EAS. Must be rebuilt for any `apps/mobile/` code changes. Backend (Convex) changes do NOT require a mobile rebuild.
+
 ## Key Patterns
 - **Mutations** validate inputs, check for duplicates, enforce referential integrity
 - **Status transitions** use explicit allowlists (POs, build orders)
