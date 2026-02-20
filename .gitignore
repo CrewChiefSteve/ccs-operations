@@ -9,3 +9,5 @@ dist/
 .turbo
 .expo/
 # convex/_generated/ — intentionally tracked so EAS cloud builds have typed API
+*.tsbuildinfo
+nul
