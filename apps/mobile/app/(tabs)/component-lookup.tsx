@@ -31,7 +31,7 @@ export default function ComponentLookupScreen() {
 
   const searchResults = useQuery(
     api.inventory.components.search,
-    searchText.length >= 2 ? { query: searchText } : 'skip'
+    searchText.length >= 2 ? { searchTerm: searchText } : 'skip'
   );
 
   const stockLevels = useQuery(

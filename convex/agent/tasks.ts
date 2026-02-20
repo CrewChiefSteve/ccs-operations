@@ -144,9 +144,10 @@ export const create = mutation({
 // Generic status update — validates transitions.
 // ============================================================
 const TASK_TRANSITIONS: Record<string, string[]> = {
-  pending: ["assigned", "in_progress", "cancelled"],
-  assigned: ["in_progress", "cancelled"],
-  in_progress: ["completed", "escalated", "cancelled"],
+  pending: ["assigned", "in_progress", "blocked", "cancelled"],
+  assigned: ["in_progress", "blocked", "cancelled"],
+  in_progress: ["completed", "blocked", "escalated", "cancelled"],
+  blocked: ["in_progress", "assigned", "cancelled"],
   completed: ["verified"],
   verified: [],
   escalated: ["in_progress", "assigned", "cancelled"],

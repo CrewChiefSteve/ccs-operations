@@ -64,7 +64,7 @@ export default function AlertsScreen() {
 
   const handleResolve = async (alertId: string) => {
     try {
-      await resolveAlert({ alertId });
+      await resolveAlert({ alertId, resolvedBy: 'mobile' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSelectedAlert(null);
     } catch (err: any) {
