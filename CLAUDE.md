@@ -28,7 +28,7 @@ Convex deployments:
 - **Prod**: `hip-rabbit-748.convex.cloud`
 
 ## Auth
-Clerk + Convex via `ConvexProviderWithClerk`. Provider wraps the whole app in `apps/web/src/lib/providers.tsx`. Convex auth config is at `convex/auth.config.ts` (domain: `clerk.crewchiefsteve.ai`). The `.env.local` needs `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
+Clerk + Convex via `ConvexProviderWithClerk`. Provider wraps the whole app in `apps/web/src/lib/providers.tsx`. Convex auth config is at `convex/auth.config.ts` (domain: `lenient-newt-91.clerk.accounts.dev`). The `.env.local` needs `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`. This is a dedicated CCS-ops Clerk instance, separate from the Portal's `clerk.crewchiefsteve.ai`.
 
 ## Convex Backend Layout
 

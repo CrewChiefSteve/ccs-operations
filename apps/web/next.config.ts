@@ -15,6 +15,7 @@ function resolvePackage(pkg: string) {
 }
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   transpilePackages: ["@ccs/shared"],
 
   webpack: (config) => {
